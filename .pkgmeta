@@ -20,7 +20,7 @@ externals:
   libs/AbstractFramework:
     url: https://github.com/enderneko/AbstractFramework.git
     branch: main
-  libs/OpenRaidLibrary
+  libs/OpenRaidLibrary:
     url: https://github.com/Tercioo/Open-Raid-Library.git
     branch: main
 
