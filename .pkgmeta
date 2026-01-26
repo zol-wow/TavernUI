@@ -1,6 +1,9 @@
 package-as: TavernUI
 enable-nolib-creation: no
 
+curse-id: 1443486
+wago-id: qKQmgaKx
+
 externals:
   libs/: https://github.com/WoWUIDev/Ace3.git
   libs/LibSerialize: https://github.com/rossnichols/LibSerialize
@@ -26,18 +29,18 @@ externals:
 ignore:
   - "*.md"
   - "*.bat"
-  - "libs/tests"
-  - "libs/test"
-  - "libs/tests/**"
-  - "libs/test/**"
-  - "libs/*/tests"
-  - "libs/*/test"
-  - "libs/*/tests/**"
-  - "libs/*/test/**"
+  - ".github/"
+  - ".gitignore"
+  - libs/tests
+  - libs/LibDeflate/tests
+  - libs/*/tests
+  - libs/*/test
 
 move-folders:
   TavernUI/Modules/ExampleModule: TavernUI_ExampleModule
   TavernUI/Modules/Options: TavernUI_Options
+
+manual-changelog: CHANGELOG.txt
 
 tools-used:
   - ouf

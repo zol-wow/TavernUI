@@ -1,0 +1,5 @@
+TavernUI Changelog
+==================
+
+v1.0.0-alpha-0 (2026-01-27)
+ - It begins!
