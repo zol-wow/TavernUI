@@ -1,5 +1,7 @@
 TavernUI Changelog
 ==================
+v1.0.0-alpha-1 (2026-01-27)
+ - Fix a ToC issue on Sub Addons Loading
 
 v1.0.0-alpha-0 (2026-01-27)
  - It begins!

@@ -36,6 +36,7 @@ ignore:
   - libs/*/tests
   - libs/*/test
   - Modules/ExampleModule
+  - Modules/DataBar
 
 move-folders:
   TavernUI/Modules/ExampleModule: TavernUI_ExampleModule
