@@ -1,7 +1,16 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
-local module = TavernUI:GetModule("DataBar")
+local module = TavernUI:GetModule("DataBar", true)
+if not module then return end
 local LibSharedMedia = LibStub("LibSharedMedia-3.0", true)
 local Anchor = LibStub("LibAnchorRegistry-1.0", true)
+
+local playerClassColor
+do
+    local _, classToken = UnitClass("player")
+    if classToken then
+        playerClassColor = C_ClassColor.GetClassColor(classToken)
+    end
+end
 
 function module:AddSlot(barId, slotIndex, datatextName)
     local bar = self:GetBar(barId)
@@ -148,11 +157,11 @@ function module:CreateSlot(barId, slotIndex, slot, bar)
 
     slotFrame:SetHeight(bar.height or 40)
 
-    local font = bar.font
-    if font and LibSharedMedia then
-        font = LibSharedMedia:Fetch("font", font) or font
-    end
-    text:SetFont(font or "Fonts\\FRIZQT__.TTF", bar.fontSize or 12)
+    local fontPath = TavernUI:GetFontPath(bar.font)
+    local fontSize = bar.fontSize or TavernUI:GetFontSize(12)
+    local fontFlags = TavernUI:GetFontFlags()
+    text:SetFont(fontPath, fontSize, fontFlags)
+    TavernUI:ApplyFont(text, slotFrame, fontSize)
 
     local textColor = slot.textColor or bar.textColor
     text:SetTextColor(textColor.r, textColor.g, textColor.b, 1)
@@ -238,11 +247,8 @@ end
 function module:GetLabelColorEscape(barId)
     local bar = self:GetBar(barId)
     if not bar then return "|cffb3b3b3" end
-    if bar.useLabelClassColor then
-        local classColor = C_ClassColor.GetClassColor(select(2, UnitClass("player")))
-        if classColor then
-            return string.format("|cff%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
-        end
+    if bar.useLabelClassColor and playerClassColor then
+        return string.format("|cff%02x%02x%02x", playerClassColor.r * 255, playerClassColor.g * 255, playerClassColor.b * 255)
     end
     local tc = bar.labelColor or { r = 0.7, g = 0.7, b = 0.7 }
     return string.format("|cff%02x%02x%02x", tc.r * 255, tc.g * 255, tc.b * 255)
@@ -251,11 +257,8 @@ end
 function module:GetValueColorEscape(barId)
     local bar = self:GetBar(barId)
     if not bar then return "|cffffffff" end
-    if bar.useClassColor then
-        local classColor = C_ClassColor.GetClassColor(select(2, UnitClass("player")))
-        if classColor then
-            return string.format("|cff%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
-        end
+    if bar.useClassColor and playerClassColor then
+        return string.format("|cff%02x%02x%02x", playerClassColor.r * 255, playerClassColor.g * 255, playerClassColor.b * 255)
     end
     local tc = bar.textColor or { r = 1, g = 1, b = 1 }
     return string.format("|cff%02x%02x%02x", tc.r * 255, tc.g * 255, tc.b * 255)
@@ -313,12 +316,9 @@ function module:UpdateSlotColor(barId, slotIndex, text)
     end
 
     if bar then
-        if bar.useClassColor then
-            local classColor = C_ClassColor.GetClassColor(select(2, UnitClass("player")))
-            if classColor then
-                text:SetTextColor(classColor.r, classColor.g, classColor.b)
-                return
-            end
+        if bar.useClassColor and playerClassColor then
+            text:SetTextColor(playerClassColor.r, playerClassColor.g, playerClassColor.b)
+            return
         end
         local tc = bar.textColor or {r = 1, g = 1, b = 1}
         text:SetTextColor(tc.r, tc.g, tc.b)

@@ -109,6 +109,19 @@ DataBar:RegisterDatatext("Player Spec", {
         "TRAIT_CONFIG_LIST_UPDATED",
     },
     eventDelay = 0.2,
+    init = function()
+        local TLM = GetTLM()
+        if not TLM or not TLM.RegisterCallback or not TLM.Event then return end
+        local callbackOwner = {}
+        local function OnLoadoutChanged()
+            C_Timer.After(0.1, function()
+                DataBar:RefreshDatatext("Player Spec")
+            end)
+        end
+        TLM:RegisterCallback(TLM.Event.LoadoutListUpdated, OnLoadoutChanged, callbackOwner)
+        TLM:RegisterCallback(TLM.Event.LoadoutUpdated, OnLoadoutChanged, callbackOwner)
+        TLM:RegisterCallback(TLM.Event.CustomLoadoutApplied, OnLoadoutChanged, callbackOwner)
+    end,
     options = {
         displayMode = {
             type = "select",
@@ -314,28 +327,3 @@ DataBar:RegisterDatatext("Player Spec", {
     end,
 })
 
--- TLM callback registration (deferred to PLAYER_LOGIN so TLM is loaded)
-do
-    local tlmRegistered = false
-    local callbackOwner = {}
-
-    local function OnLoadoutChanged()
-        C_Timer.After(0.1, function()
-            DataBar:RefreshDatatext("Player Spec")
-        end)
-    end
-
-    local initFrame = CreateFrame("Frame")
-    initFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    initFrame:SetScript("OnEvent", function(self)
-        self:UnregisterAllEvents()
-        if tlmRegistered then return end
-        local TLM = GetTLM()
-        if not TLM or not TLM.RegisterCallback or not TLM.Event then return end
-
-        TLM:RegisterCallback(TLM.Event.LoadoutListUpdated, OnLoadoutChanged, callbackOwner)
-        TLM:RegisterCallback(TLM.Event.LoadoutUpdated, OnLoadoutChanged, callbackOwner)
-        TLM:RegisterCallback(TLM.Event.CustomLoadoutApplied, OnLoadoutChanged, callbackOwner)
-        tlmRegistered = true
-    end)
-end

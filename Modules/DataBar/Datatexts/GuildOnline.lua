@@ -1,6 +1,8 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+local format = string.format
+
 local MAX_DISPLAY = 20
 
 local function GetClassColor(className)
@@ -122,7 +124,7 @@ end
 
 local function SendWhisperTo(name)
     if not name or name == "" then return end
-    SetItemRef("player:" .. name, string.format("|Hplayer:%1$s|h[%1$s]|h", name), "LeftButton")
+    SetItemRef("player:" .. name, format("|Hplayer:%1$s|h[%1$s]|h", name), "LeftButton")
 end
 
 local function BuildGuildContextMenu(frame)
@@ -144,7 +146,7 @@ local function BuildGuildContextMenu(frame)
                 local r, g, b = 1, 1, 1
                 local classColor = GetClassColor(engClass)
                 if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
-                local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
+                local colorCode = format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
                 local displayName = StripMyRealm(name)
                 local whisperName = name
                 whisperMenu:CreateButton(level .. " " .. colorCode .. displayName .. "|r", function()
@@ -168,7 +170,7 @@ local function BuildGuildContextMenu(frame)
                 local r, g, b = 1, 1, 1
                 local classColor = GetClassColor(engClass)
                 if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
-                local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
+                local colorCode = format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
                 local displayName = StripMyRealm(name)
                 local inviteName = name
                 inviteMenu:CreateButton(level .. " " .. colorCode .. displayName .. "|r", function()

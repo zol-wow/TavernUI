@@ -1,12 +1,14 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+local floor = math.floor
+
 DataBar:RegisterDatatext("FPS", {
     label = "FPS",
     labelShort = "F",
     pollInterval = 1,
     update = function()
-        return tostring(math.floor(GetFramerate()))
+        return tostring(floor(GetFramerate()))
     end,
     getColor = function()
         local fps = GetFramerate()

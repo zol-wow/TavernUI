@@ -80,7 +80,14 @@ function module:OnInitialize()
     self.playerGUID = nil
 
     self:RegisterMessage("TavernUI_ProfileChanged", "OnProfileChanged")
-    self:RegisterMessage("TavernUI_CoreEnabled", "OnCoreEnabled")
+
+    self:WatchSetting("enabled", function(newValue)
+        if newValue then
+            self:Enable()
+        else
+            self:Disable()
+        end
+    end)
 
     self:RegisterOptions()
 
@@ -177,10 +184,6 @@ function module:FormatMemory(kb)
     else
         return string.format("%.0f KB", kb)
     end
-end
-
-function module:OnCoreEnabled()
-    self:Debug("Core enabled notification received")
 end
 
 function module:PLAYER_ENTERING_WORLD()

@@ -1,5 +1,7 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
-local module = TavernUI:GetModule("DataBar")
+local L = LibStub("AceLocale-3.0"):GetLocale("TavernUI", true)
+local module = TavernUI:GetModule("DataBar", true)
+if not module then return end
 local LibSharedMedia = LibStub("LibSharedMedia-3.0", true)
 local Anchor = LibStub("LibAnchorRegistry-1.0", true)
 local AceConfigDialog = LibStub("AceConfigDialog-3.0", true)
@@ -113,11 +115,11 @@ local function addAnchorOption(args, barId, bar, prefix, order, field, default, 
         args[prefix .. field] = {
             type = "select",
             name = name,
-            desc = "Anchor target frame",
+            desc = L["ANCHOR_TARGET_FRAME_DESC"],
             order = order,
             disabled = disabled,
             values = function()
-                local vals = { UIParent = "Screen" }
+                local vals = { UIParent = L["SCREEN"] }
                 if Anchor then
                     local dropdownData = Anchor:GetDropdownData()
                     for _, entry in ipairs(dropdownData) do
@@ -142,9 +144,9 @@ local function addAnchorOption(args, barId, bar, prefix, order, field, default, 
             end,
         }
     elseif field == "point" or field == "point2" or field:find("Point") then
-        local descText = "Point on the bar to anchor"
+        local descText = L["POINT_ON_BAR_DESC"]
         if field == "relativePoint" or field == "relativePoint2" then
-            descText = "Point on the target to anchor to"
+            descText = L["POINT_ON_TARGET_DESC"]
         end
         args[prefix .. field] = {
             type = "select",
@@ -160,7 +162,7 @@ local function addAnchorOption(args, barId, bar, prefix, order, field, default, 
         args[prefix .. field] = {
             type = "range",
             name = name,
-            desc = (field:find("X") and "Horizontal" or "Vertical") .. " offset",
+            desc = (field:find("X") and L["HORIZONTAL_OFFSET"] or L["VERTICAL_OFFSET"]),
             order = order,
             min = -500,
             max = 500,
@@ -191,13 +193,13 @@ end
 function module:BuildOptions()
     local options = {
         type = "group",
-        name = "DataBar",
+        name = L["DATA_BAR"],
         childGroups = "tab",
         args = {
             bars = {
                 type = "group",
-                name = "Bars",
-                desc = "Configure your information bars",
+                name = L["BARS"],
+                desc = L["CONFIGURE_BARS_DESC"],
                 order = 10,
                 childGroups = "select",
                 args = {},
@@ -207,7 +209,7 @@ function module:BuildOptions()
 
     self:BuildBarListOptions(options.args.bars.args)
 
-    TavernUI:RegisterModuleOptions("DataBar", options, "DataBar")
+    TavernUI:RegisterModuleOptions("DataBar", options, L["DATA_BAR"])
 end
 
 function module:BuildBarListOptions(args)
@@ -215,8 +217,8 @@ function module:BuildBarListOptions(args)
 
     args.addBar = {
         type = "execute",
-        name = "Create New Bar",
-        desc = "Create a new information bar",
+        name = L["CREATE_NEW_BAR"],
+        desc = L["CREATE_NEW_BAR_DESC"],
         order = 1,
         func = function()
             self:CreateBar("New Bar")
@@ -237,7 +239,7 @@ function module:BuildBarListOptions(args)
         local barArgs = {
             type = "group",
             name = barName,
-            desc = string.format("Configure %s", barName),
+            desc = string.format(L["CONFIGURE_S"], barName),
             order = (i + 1) * 10,
             childGroups = "tab",
             args = {},
@@ -245,15 +247,15 @@ function module:BuildBarListOptions(args)
 
         local generalArgs = {
             type = "group",
-            name = "General",
+            name = L["GENERAL"],
             order = 10,
             args = {},
         }
 
         generalArgs.args.enabled = {
             type = "toggle",
-            name = "Enabled",
-            desc = "Enable or disable this bar",
+            name = L["ENABLED"],
+            desc = L["ENABLE_DISABLE_BAR_DESC"],
             order = 1,
             get = function() return bar.enabled end,
             set = function(_, value)
@@ -264,8 +266,8 @@ function module:BuildBarListOptions(args)
 
         generalArgs.args.name = {
             type = "input",
-            name = "Name",
-            desc = "Name of this bar",
+            name = L["NAME"],
+            desc = L["NAME_OF_BAR_DESC"],
             order = 2,
             get = function() return bar.name or "" end,
             set = function(_, value)
@@ -281,8 +283,8 @@ function module:BuildBarListOptions(args)
 
         generalArgs.args.delete = {
             type = "execute",
-            name = "Delete Bar",
-            desc = "Permanently delete this bar",
+            name = L["DELETE_BAR"],
+            desc = L["DELETE_BAR_DESC"],
             order = 3,
             confirm = true,
             func = function()
@@ -294,22 +296,22 @@ function module:BuildBarListOptions(args)
         barArgs.args.general = generalArgs
         barArgs.args.slots = {
             type = "group",
-            name = "Slots",
-            desc = "Configure datatext slots for this bar",
+            name = L["SLOTS"],
+            desc = L["CONFIGURE_SLOTS_DESC"],
             order = 20,
             args = {},
         }
         barArgs.args.styling = {
             type = "group",
-            name = "Styling",
-            desc = "Configure the appearance of this bar",
+            name = L["STYLING"],
+            desc = L["CONFIGURE_STYLING_DESC"],
             order = 30,
             args = {},
         }
         barArgs.args.position = {
             type = "group",
-            name = "Position",
-            desc = "Configure the position and anchoring of this bar",
+            name = L["POSITION"],
+            desc = L["CONFIGURE_POSITION_DESC"],
             order = 40,
             args = {},
         }
@@ -350,8 +352,8 @@ end
 function module:BuildSlotOptions(args, barId, bar)
     args.addSlot = {
         type = "select",
-        name = "Add Datatext",
-        desc = "Add a new datatext slot to this bar",
+        name = L["ADD_DATATEXT"],
+        desc = L["ADD_DATATEXT_DESC"],
         order = 1,
         values = getDatatextValues,
         sorting = getDatatextSorting,
@@ -378,16 +380,16 @@ function module:BuildSlotOptions(args, barId, bar)
     for slotIndex, slot in ipairs(bar.slots) do
         local slotArgs = {
             type = "group",
-            name = string.format("Slot %d", slotIndex),
-            desc = string.format("Configure slot %d", slotIndex),
+            name = string.format(L["SLOT_N"], slotIndex),
+            desc = string.format(L["CONFIGURE_SLOT_N_DESC"], slotIndex),
             order = (slotIndex + 1) * 10,
             args = {},
         }
 
         slotArgs.args.datatext = {
             type = "select",
-            name = "Datatext",
-            desc = "Select which datatext to display",
+            name = L["DATATEXT"],
+            desc = L["SELECT_DATATEXT_DESC"],
             order = 1,
             values = getDatatextValues,
             sorting = getDatatextSorting,
@@ -411,8 +413,8 @@ function module:BuildSlotOptions(args, barId, bar)
 
         slotArgs.args.width = {
             type = "input",
-            name = "Width",
-            desc = "Slot width (leave empty for auto)",
+            name = L["WIDTH"],
+            desc = L["SLOT_WIDTH_DESC"],
             order = 4,
             get = function() return slot.width and tostring(slot.width) or "" end,
             set = function(_, value)
@@ -427,10 +429,10 @@ function module:BuildSlotOptions(args, barId, bar)
 
         slotArgs.args.labelMode = {
             type = "select",
-            name = "Label",
-            desc = "Show label before value",
+            name = L["LABEL"],
+            desc = L["SHOW_LABEL_DESC"],
             order = 7,
-            values = {none = "None", short = "Short", full = "Full"},
+            values = {none = L["NONE"], short = L["SHORT"], full = L["FULL"]},
             get = function() return slot.labelMode or "none" end,
             set = function(_, value)
                 self:SetSetting(string.format("bars[%d].slots[%d].labelMode", barId, slotIndex), value)
@@ -474,8 +476,8 @@ function module:BuildSlotOptions(args, barId, bar)
 
         slotArgs.args.remove = {
             type = "execute",
-            name = "Remove Slot",
-            desc = "Remove this slot from the bar",
+            name = L["REMOVE_SLOT"],
+            desc = L["REMOVE_SLOT_DESC"],
             order = 100,
             confirm = true,
             func = function()
@@ -503,16 +505,16 @@ function module:BuildStylingOptions(args, barId, bar)
             get = getColor, set = setColor}
     end
 
-    addHeader("Size", 10)
-    addRange("width", "Width", "Bar width in pixels", 11, 50, 2560, 1)
-    addRange("height", "Height", "Bar height in pixels", 12, 20, 200, 1)
+    addHeader(L["SIZE"], 10)
+    addRange("width", L["WIDTH"], L["BAR_WIDTH_PIXELS_DESC"], 11, 50, 2560, 1)
+    addRange("height", L["HEIGHT"], L["BAR_HEIGHT_PIXELS_DESC"], 12, 20, 200, 1)
 
-    addHeader("Background", 20)
-    args.backgroundType = {type = "select", name = "Background Type", desc = "Type of background to display", order = 21,
-        values = {solid = "Solid Color", texture = "Texture"},
+    addHeader(L["BACKGROUND"], 20)
+    args.backgroundType = {type = "select", name = L["BACKGROUND_TYPE"], desc = L["BACKGROUND_TYPE_DESC"], order = 21,
+        values = {solid = L["SOLID_COLOR"], texture = L["TEXTURE"]},
         get = function() return bar.background.type or "solid" end,
         set = createSimpleOptionSetter(barId, "background.type")}
-    args.backgroundColor = {type = "color", name = "Background Color", desc = "Background color and opacity", order = 22,
+    args.backgroundColor = {type = "color", name = L["BACKGROUND_COLOR"], desc = L["BACKGROUND_COLOR_DESC"], order = 22,
         hasAlpha = true,
         get = function()
             local c = bar.background.color
@@ -531,7 +533,7 @@ function module:BuildStylingOptions(args, barId, bar)
             end
             return textures
         end
-        args.backgroundTexture = {type = "select", name = "Background Texture", desc = "LibSharedMedia statusbar texture", order = 24,
+        args.backgroundTexture = {type = "select", name = L["BACKGROUND_TEXTURE"], desc = L["LSM_STATUSBAR_TEXTURE_DESC"], order = 24,
             values = getStatusbarTextures,
             hidden = function() return bar.background.type ~= "texture" end,
             get = function() return bar.background.texture or "" end,
@@ -541,15 +543,15 @@ function module:BuildStylingOptions(args, barId, bar)
             end}
     end
 
-    addHeader("Text", 30)
-    addRange("fontSize", "Font Size", "Font size for datatext", 31, 8, 32, 1)
-    addColor("textColor", "Text Color", "Default text color for datatexts", 32,
+    addHeader(L["TEXT"], 30)
+    addRange("fontSize", L["FONT_SIZE"], L["FONT_SIZE_DATATEXT_DESC"], 31, 8, 32, 1)
+    addColor("textColor", L["TEXT_COLOR"], L["TEXT_COLOR_DESC"], 32,
         function() local c = bar.textColor; return c.r, c.g, c.b end,
         function(_, r, g, b) self:SetSetting(string.format("bars[%d].textColor", barId), {r = r, g = g, b = b}); self:UpdateBar(barId) end)
     args.useClassColor = {
         type = "toggle",
-        name = "Use Class Color",
-        desc = "Use player class color for datatext values",
+        name = L["USE_CLASS_COLOUR"],
+        desc = L["USE_CLASS_COLOR_VALUES_DESC"],
         order = 33,
         get = function() return bar.useClassColor end,
         set = function(_, value)
@@ -558,13 +560,13 @@ function module:BuildStylingOptions(args, barId, bar)
         end,
     }
 
-    addColor("labelColor", "Label Color", "Color for label prefix text", 34,
+    addColor("labelColor", L["LABEL_COLOR"], L["LABEL_COLOR_DESC"], 34,
         function() local c = bar.labelColor or {r = 0.7, g = 0.7, b = 0.7}; return c.r, c.g, c.b end,
         function(_, r, g, b) self:SetSetting(string.format("bars[%d].labelColor", barId), {r = r, g = g, b = b}); self:UpdateBar(barId) end)
     args.useLabelClassColor = {
         type = "toggle",
-        name = "Use Class Color for Labels",
-        desc = "Use player class color for label prefix text",
+        name = L["USE_CLASS_COLOR_LABELS"],
+        desc = L["USE_CLASS_COLOR_LABELS_DESC"],
         order = 35,
         get = function() return bar.useLabelClassColor end,
         set = function(_, value)
@@ -573,11 +575,11 @@ function module:BuildStylingOptions(args, barId, bar)
         end,
     }
 
-    addHeader("Border", 40)
+    addHeader(L["BORDER"], 40)
     args.borderEnabled = {
         type = "toggle",
-        name = "Show Border",
-        desc = "Show border around the bar",
+        name = L["SHOW_BORDER"],
+        desc = L["SHOW_BORDER_DESC"],
         order = 41,
         get = function() return bar.borders.top.enabled end,
         set = function(_, value)
@@ -591,8 +593,8 @@ function module:BuildStylingOptions(args, barId, bar)
     }
     args.borderColor = {
         type = "color",
-        name = "Border Color",
-        desc = "Border color",
+        name = L["BORDER_COLOR"],
+        desc = L["BORDER_COLOR"],
         order = 42,
         hasAlpha = false,
         get = function()
@@ -611,8 +613,8 @@ function module:BuildStylingOptions(args, barId, bar)
     }
     args.borderWidth = {
         type = "range",
-        name = "Border Width",
-        desc = "Border width in pixels",
+        name = L["BORDER_SIZE"],
+        desc = L["BORDER_WIDTH_PIXELS_DESC"],
         order = 43,
         min = 1,
         max = 5,
@@ -628,24 +630,24 @@ function module:BuildStylingOptions(args, barId, bar)
         end,
     }
 
-    addHeader("Layout", 50)
-    args.growthDirection = {type = "select", name = "Growth Direction", desc = "Direction slots grow in", order = 51,
-        values = {horizontal = "Horizontal", vertical = "Vertical"},
+    addHeader(L["LAYOUT"], 50)
+    args.growthDirection = {type = "select", name = L["GROWTH_DIRECTION"], desc = L["GROWTH_DIRECTION_DESC"], order = 51,
+        values = {horizontal = L["HORIZONTAL"], vertical = L["VERTICAL"]},
         get = function() return bar.growthDirection end,
         set = createSimpleOptionSetter(barId, "growthDirection")}
-    addRange("spacing", "Spacing", "Spacing between slots", 52, 0, 50, 1)
+    addRange("spacing", L["SPACING"], L["SPACING_BETWEEN_SLOTS_DESC"], 52, 0, 50, 1)
 end
 
 function module:BuildPositionOptions(args, barId, bar)
     if not Anchor then
-        args.noAnchor = {type = "description", name = "LibAnchorRegistry not available", order = 1}
+        args.noAnchor = {type = "description", name = L["LIB_ANCHOR_NOT_AVAILABLE"], order = 1}
         return
     end
 
     args.useDualAnchor = {
         type = "toggle",
-        name = "Use Dual Anchor",
-        desc = "Enable dual anchor mode to stretch the bar between two points",
+        name = L["USE_DUAL_ANCHOR"],
+        desc = L["USE_DUAL_ANCHOR_DESC"],
         order = 1,
         get = function() return bar.anchorConfig and bar.anchorConfig.useDualAnchor or false end,
         set = function(_, value)
@@ -655,14 +657,14 @@ function module:BuildPositionOptions(args, barId, bar)
         end,
     }
 
-    args.anchorHeader = {type = "header", name = "First Anchor Point", order = 10}
+    args.anchorHeader = {type = "header", name = L["FIRST_ANCHOR_POINT"], order = 10}
     addAnchorOption(args, barId, bar, "anchor", 11, "target", "UIParent", false)
     addAnchorOption(args, barId, bar, "anchor", 12, "point", "CENTER", false)
     addAnchorOption(args, barId, bar, "relative", 13, "relativePoint", "CENTER", false)
     addAnchorOption(args, barId, bar, "", 14, "offsetX", 0, false)
     addAnchorOption(args, barId, bar, "", 15, "offsetY", 0, false)
 
-    args.dualAnchorHeader = {type = "header", name = "Second Anchor Point", order = 20, disabled = function() return not (bar.anchorConfig and bar.anchorConfig.useDualAnchor) end}
+    args.dualAnchorHeader = {type = "header", name = L["SECOND_ANCHOR_POINT"], order = 20, disabled = function() return not (bar.anchorConfig and bar.anchorConfig.useDualAnchor) end}
     addAnchorOption(args, barId, bar, "anchor", 21, "target2", "UIParent", true)
     addAnchorOption(args, barId, bar, "anchor", 22, "point2", "RIGHT", true)
     addAnchorOption(args, barId, bar, "relative", 23, "relativePoint2", "RIGHT", true)
@@ -671,8 +673,8 @@ function module:BuildPositionOptions(args, barId, bar)
 
     args.clearAnchor = {
         type = "execute",
-        name = "Clear Anchor",
-        desc = "Remove all anchor configuration",
+        name = L["CLEAR_ANCHOR"],
+        desc = L["CLEAR_ANCHOR_DESC"],
         order = 100,
         func = function() self:SetSetting(string.format("bars[%d].anchorConfig", barId), nil); self:UpdateBar(barId) end,
     }
@@ -682,7 +684,7 @@ function module:BuildSlotPositionOptions(args, barId, slotIndex, slot, bar)
     if not Anchor then
         args.noAnchor = {
             type = "description",
-            name = "LibAnchorRegistry not available",
+            name = L["LIB_ANCHOR_NOT_AVAILABLE"],
             order = 1,
         }
         return
@@ -692,8 +694,8 @@ function module:BuildSlotPositionOptions(args, barId, slotIndex, slot, bar)
 
     args.anchorPoint = {
         type = "select",
-        name = "Anchor Point",
-        desc = "Point on the slot to anchor",
+        name = L["POINT"],
+        desc = L["ANCHOR_POINT_ON_SLOT_DESC"],
         order = 1,
         values = anchorPointValues,
         get = function() return slot.anchorConfig and slot.anchorConfig.point or "CENTER" end,
@@ -702,8 +704,8 @@ function module:BuildSlotPositionOptions(args, barId, slotIndex, slot, bar)
 
     args.relativePoint = {
         type = "select",
-        name = "Relative Point",
-        desc = "Point on the bar to anchor to",
+        name = L["RELATIVE_POINT"],
+        desc = L["ANCHOR_POINT_ON_BAR_DESC"],
         order = 2,
         values = anchorPointValues,
         get = function() return slot.anchorConfig and slot.anchorConfig.relativePoint or "CENTER" end,
@@ -712,8 +714,8 @@ function module:BuildSlotPositionOptions(args, barId, slotIndex, slot, bar)
 
     args.offsetX = {
         type = "range",
-        name = "Offset X",
-        desc = "Horizontal offset",
+        name = L["OFFSET_X"],
+        desc = L["HORIZONTAL_OFFSET"],
         order = 3,
         min = -500,
         max = 500,
@@ -724,8 +726,8 @@ function module:BuildSlotPositionOptions(args, barId, slotIndex, slot, bar)
 
     args.offsetY = {
         type = "range",
-        name = "Offset Y",
-        desc = "Vertical offset",
+        name = L["OFFSET_Y"],
+        desc = L["VERTICAL_OFFSET"],
         order = 4,
         min = -500,
         max = 500,
@@ -736,8 +738,8 @@ function module:BuildSlotPositionOptions(args, barId, slotIndex, slot, bar)
 
     args.clearAnchor = {
         type = "execute",
-        name = "Clear Anchor",
-        desc = "Remove anchor configuration and use auto layout",
+        name = L["CLEAR_ANCHOR"],
+        desc = L["CLEAR_ANCHOR_AUTO_DESC"],
         order = 5,
         func = function()
             self:SetSetting(string.format("bars[%d].slots[%d].anchorConfig", barId, slotIndex), nil)

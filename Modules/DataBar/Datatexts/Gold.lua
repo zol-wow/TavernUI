@@ -1,21 +1,24 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+local floor = math.floor
+local format = string.format
+
 local function FormatGold(money)
-    local gold = math.floor(money / 10000)
-    local silver = math.floor((money % 10000) / 100)
+    local gold = floor(money / 10000)
+    local silver = floor((money % 10000) / 100)
     local copper = money % 100
-    return string.format("%dg %ds %dc", gold, silver, copper)
+    return format("%dg %ds %dc", gold, silver, copper)
 end
 
 local function FormatGoldDisplay(copper)
-    local gold = math.floor(copper / 10000)
+    local gold = floor(copper / 10000)
     if gold >= 1000000 then
-        local millions = math.floor(gold / 1000000)
-        local thousands = math.floor((gold % 1000000) / 1000)
-        return string.format("%d,%03d,%03dg", millions, thousands, gold % 1000)
+        local millions = floor(gold / 1000000)
+        local thousands = floor((gold % 1000000) / 1000)
+        return format("%d,%03d,%03dg", millions, thousands, gold % 1000)
     elseif gold >= 1000 then
-        return string.format("%d,%03dg", math.floor(gold / 1000), gold % 1000)
+        return format("%d,%03dg", floor(gold / 1000), gold % 1000)
     end
     return gold .. "g"
 end
@@ -62,7 +65,7 @@ local function BuildGoldManageMenu(frame)
                 local classColor = C_ClassColor.GetClassColor(char.class)
                 if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
             end
-            local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
+            local colorCode = format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
             local deleteKey = char.key
             local btn = root:CreateButton(colorCode .. char.key .. "|r - " .. FormatGoldDisplay(char.money), function()
                 StaticPopupDialogs["TAVERNUI_GOLD_DELETE_CHAR"] = {

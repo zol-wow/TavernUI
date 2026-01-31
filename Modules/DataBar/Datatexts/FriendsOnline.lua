@@ -1,6 +1,8 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+local format = string.format
+
 -- Build reverse lookup: localized class name -> class token (e.g., "Warrior" -> "WARRIOR")
 local unlocalizedClasses = {}
 do
@@ -231,7 +233,7 @@ local function SendWhisperTo(name, isBNet)
     if isBNet then
         ChatFrameUtil.SendBNetTell(name)
     else
-        SetItemRef("player:" .. name, string.format("|Hplayer:%1$s|h[%1$s]|h", name), "LeftButton")
+        SetItemRef("player:" .. name, format("|Hplayer:%1$s|h[%1$s]|h", name), "LeftButton")
     end
 end
 
@@ -283,7 +285,7 @@ local function BuildFriendsContextMenu(frame)
             local r, g, b = 1, 1, 1
             local classColor = GetClassColor(info.className)
             if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
-            local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
+            local colorCode = format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
             local whisperName = info.name
             whisperMenu:CreateButton(colorCode .. info.name .. "|r", function()
                 SendWhisperTo(whisperName, false)
@@ -334,7 +336,7 @@ local function BuildFriendsContextMenu(frame)
                 local r, g, b = 1, 1, 1
                 local classColor = GetClassColor(info.className)
                 if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
-                local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
+                local colorCode = format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
                 local inviteName = info.name
                 inviteMenu:CreateButton(colorCode .. info.name .. "|r", function()
                     InvitePlayer(inviteName, false)

@@ -1,13 +1,15 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+local floor = math.floor
+
 DataBar:RegisterDatatext("Latency", {
     label = "Latency",
     labelShort = "M",
     pollInterval = 30,
     update = function()
         local _, _, _, world = GetNetStats()
-        return tostring(math.floor(world or 0))
+        return tostring(floor(world or 0))
     end,
     getColor = function()
         local _, _, _, world = GetNetStats()

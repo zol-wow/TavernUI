@@ -2,7 +2,8 @@
 -- Event dispatcher + poll group manager for DataBar datatexts
 
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
-local module = TavernUI:GetModule("DataBar")
+local module = TavernUI:GetModule("DataBar", true)
+if not module then return end
 
 -- Internal state
 local eventFrame = nil
@@ -10,6 +11,7 @@ local eventSubscriptions = {} -- event name -> { datatextName = true }
 local eventDelays = {}        -- datatextName -> delay (seconds) for event-driven updates
 local pollGroups = {}         -- interval -> { ticker, datatexts = { name = true } }
 local activeSlots = {}        -- datatextName -> { { barId, slotIndex }, ... }
+local initCalled = {}         -- datatextName -> true (init callback already fired)
 
 local function UpdateSlotText(barId, slotIndex, datatextName)
     local datatext = module:GetDatatext(datatextName)
@@ -43,6 +45,12 @@ function module:RegisterSlotUpdates(barId, slotIndex, datatextName)
         activeSlots[datatextName] = {}
     end
     table.insert(activeSlots[datatextName], { barId = barId, slotIndex = slotIndex })
+
+    -- One-time init callback (for deferred setup like TLM registration)
+    if datatext.init and not initCalled[datatextName] then
+        initCalled[datatextName] = true
+        datatext.init()
+    end
 
     -- Track per-datatext event delay
     if datatext.eventDelay then
@@ -91,6 +99,7 @@ function module:UnregisterSlotUpdates(barId, slotIndex)
         if #slots == 0 then
             activeSlots[datatextName] = nil
             eventDelays[datatextName] = nil
+            initCalled[datatextName] = nil
             for event, subs in pairs(eventSubscriptions) do
                 subs[datatextName] = nil
                 if not next(subs) then

@@ -1,6 +1,8 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+local floor = math.floor
+
 local SLOT_NAMES = {
     [1] = HEADSLOT, [2] = NECKSLOT, [3] = SHOULDERSLOT,
     [5] = CHESTSLOT, [6] = WAISTSLOT, [7] = LEGSSLOT,
@@ -18,7 +20,7 @@ local function GetDurabilityPercent()
         end
     end
     if total == 0 then return 100 end
-    return math.floor(((total - broken) / total) * 100)
+    return floor(((total - broken) / total) * 100)
 end
 
 DataBar:RegisterDatatext("Durability", {
@@ -36,7 +38,7 @@ DataBar:RegisterDatatext("Durability", {
         for slot, name in pairs(SLOT_NAMES) do
             local current, maximum = GetInventoryItemDurability(slot)
             if current and maximum then
-                local pct = math.floor((current / maximum) * 100)
+                local pct = floor((current / maximum) * 100)
                 local r, g = 1, 1
                 if pct <= 25 then
                     r, g = 1, 0

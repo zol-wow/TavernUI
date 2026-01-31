@@ -1,6 +1,8 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+local floor = math.floor
+
 DataBar:RegisterDatatext("Experience", {
     label = "XP",
     labelShort = "XP",
@@ -10,7 +12,7 @@ DataBar:RegisterDatatext("Experience", {
             return "Max Level"
         end
         local current, max = UnitXP("player"), UnitXPMax("player")
-        local pct = max > 0 and math.floor((current / max) * 100) or 0
+        local pct = max > 0 and floor((current / max) * 100) or 0
         return pct .. "%"
     end,
     tooltip = function(frame)
@@ -32,7 +34,7 @@ DataBar:RegisterDatatext("Experience", {
         if rested and rested > 0 then
             GameTooltip:AddLine(" ")
             GameTooltip:AddDoubleLine("Rested XP:", DataBar:FormatNumber(rested), 0.2, 0.6, 1, 0.2, 0.6, 1)
-            local restedPercent = max > 0 and math.floor((rested / max) * 100 + 0.5) or 0
+            local restedPercent = max > 0 and floor((rested / max) * 100 + 0.5) or 0
             GameTooltip:AddDoubleLine("Rested Bonus:", restedPercent .. "% of level", 0.2, 0.6, 1, 0.2, 0.6, 1)
         end
 

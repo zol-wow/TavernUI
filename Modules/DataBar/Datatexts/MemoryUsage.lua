@@ -1,6 +1,8 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+local min = math.min
+
 DataBar:RegisterDatatext("Memory Usage", {
     label = "Memory",
     labelShort = "",
@@ -22,7 +24,7 @@ DataBar:RegisterDatatext("Memory Usage", {
             end
         end
         table.sort(addons, function(a, b) return a.mem > b.mem end)
-        for i = 1, math.min(#addons, 15) do
+        for i = 1, min(#addons, 15) do
             local a = addons[i]
             GameTooltip:AddDoubleLine(a.name, DataBar:FormatMemory(a.mem), 1, 1, 1, 1, 1, 0)
         end
