@@ -3,6 +3,14 @@ local DataBar = TavernUI:GetModule("DataBar")
 
 local MAX_DISPLAY = 20
 
+local function GetClassColor(className)
+    if not className then return nil end
+    if RAID_CLASS_COLORS[className] then
+        return RAID_CLASS_COLORS[className]
+    end
+    return nil
+end
+
 local function IsPlayerInGroup(name)
     if not IsInGroup() then return false end
     for i = 1, GetNumGroupMembers() do
@@ -50,11 +58,11 @@ local function BuildGuildTooltip(frame)
 
     local shown = 0
     for i = 1, totalMembers do
-        local name, rankName, _, level, className, zone, note, officerNote, online, status = GetGuildRosterInfo(i)
+        local name, rankName, _, level, _, zone, note, officerNote, online, status, engClass = GetGuildRosterInfo(i)
         if online and shown < MAX_DISPLAY then
             shown = shown + 1
             local r, g, b = 1, 1, 1
-            local classColor = className and C_ClassColor.GetClassColor(className)
+            local classColor = GetClassColor(engClass)
             if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
 
             local statusText = ""
@@ -130,11 +138,11 @@ local function BuildGuildContextMenu(frame)
         local hasWhisperTargets = false
 
         for i = 1, totalMembers do
-            local name, _, _, level, className, _, _, _, online = GetGuildRosterInfo(i)
+            local name, _, _, level, _, _, _, _, online, _, engClass = GetGuildRosterInfo(i)
             if online and name ~= playerName then
                 hasWhisperTargets = true
                 local r, g, b = 1, 1, 1
-                local classColor = className and C_ClassColor.GetClassColor(className)
+                local classColor = GetClassColor(engClass)
                 if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
                 local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
                 local displayName = StripMyRealm(name)
@@ -154,11 +162,11 @@ local function BuildGuildContextMenu(frame)
         local hasInviteTargets = false
 
         for i = 1, totalMembers do
-            local name, _, _, level, className, _, _, _, online = GetGuildRosterInfo(i)
+            local name, _, _, level, _, _, _, _, online, _, engClass = GetGuildRosterInfo(i)
             if online and name ~= playerName and not IsPlayerInGroup(name) then
                 hasInviteTargets = true
                 local r, g, b = 1, 1, 1
-                local classColor = className and C_ClassColor.GetClassColor(className)
+                local classColor = GetClassColor(engClass)
                 if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
                 local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
                 local displayName = StripMyRealm(name)

@@ -1,6 +1,28 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local DataBar = TavernUI:GetModule("DataBar")
 
+-- Build reverse lookup: localized class name -> class token (e.g., "Warrior" -> "WARRIOR")
+local unlocalizedClasses = {}
+do
+    local classMale = LOCALIZED_CLASS_NAMES_MALE
+    local classFemale = LOCALIZED_CLASS_NAMES_FEMALE
+    if classMale then
+        for token, localized in pairs(classMale) do unlocalizedClasses[localized] = token end
+    end
+    if classFemale then
+        for token, localized in pairs(classFemale) do unlocalizedClasses[localized] = token end
+    end
+end
+
+local function GetClassColor(className)
+    if not className then return nil end
+    if RAID_CLASS_COLORS[className] then
+        return RAID_CLASS_COLORS[className]
+    end
+    local classToken = unlocalizedClasses[className]
+    return classToken and RAID_CLASS_COLORS[classToken]
+end
+
 local function CountOnlineFriends()
     local wowOnline = 0
     for i = 1, C_FriendList.GetNumFriends() do
@@ -17,7 +39,11 @@ local function IsPlayerInGroup(name)
     if not IsInGroup() then return false end
     for i = 1, GetNumGroupMembers() do
         local unit = IsInRaid() and ("raid" .. i) or ("party" .. i)
-        if UnitName(unit) == name then return true end
+        local unitName, unitRealm = UnitName(unit)
+        if unitName then
+            local fullUnit = unitRealm and unitRealm ~= "" and (unitName .. "-" .. unitRealm) or unitName
+            if fullUnit == name or unitName == name then return true end
+        end
     end
     return false
 end
@@ -58,7 +84,7 @@ local function BuildFriendsTooltip(frame)
         GameTooltip:AddLine("WoW Friends", 0.7, 0.7, 0.7)
         for _, info in ipairs(wowFriends) do
             local r, g, b = 1, 1, 1
-            local classColor = info.className and C_ClassColor.GetClassColor(info.className)
+            local classColor = GetClassColor(info.className)
             if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
 
             local status = GetStatusText(info)
@@ -110,7 +136,7 @@ local function BuildFriendsTooltip(frame)
             local accountName = entry.account.accountName or "?"
             local charName = gameInfo.characterName
             local r, g, b = 1, 1, 1
-            local classColor = gameInfo.className and C_ClassColor.GetClassColor(gameInfo.className)
+            local classColor = GetClassColor(gameInfo.className)
             if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
 
             local status = GetBNetStatusText(gameInfo)
@@ -141,7 +167,7 @@ local function BuildFriendsTooltip(frame)
             local accountName = entry.account.accountName or "?"
             local charName = gameInfo.characterName
             local r, g, b = 0.8, 0.8, 0.8
-            local classColor = gameInfo.className and C_ClassColor.GetClassColor(gameInfo.className)
+            local classColor = GetClassColor(gameInfo.className)
             if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
 
             local status = GetBNetStatusText(gameInfo)
@@ -255,7 +281,7 @@ local function BuildFriendsContextMenu(frame)
         for _, info in ipairs(wowFriends) do
             hasWhisperTargets = true
             local r, g, b = 1, 1, 1
-            local classColor = info.className and C_ClassColor.GetClassColor(info.className)
+            local classColor = GetClassColor(info.className)
             if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
             local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
             local whisperName = info.name
@@ -306,7 +332,7 @@ local function BuildFriendsContextMenu(frame)
             if not IsPlayerInGroup(info.name) then
                 hasInviteTargets = true
                 local r, g, b = 1, 1, 1
-                local classColor = info.className and C_ClassColor.GetClassColor(info.className)
+                local classColor = GetClassColor(info.className)
                 if classColor then r, g, b = classColor.r, classColor.g, classColor.b end
                 local colorCode = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
                 local inviteName = info.name
