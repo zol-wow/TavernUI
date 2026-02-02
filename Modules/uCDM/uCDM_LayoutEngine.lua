@@ -72,6 +72,16 @@ function LayoutEngine.Initialize()
         end)
     end
 
+    module:WatchSetting("viewers.buff.showPreview", function()
+        if module:IsEnabled() then
+            LayoutEngine.RefreshViewer("buff")
+        end
+    end)
+    module:WatchSetting("viewers.buff.previewIconCount", function()
+        if module:IsEnabled() then
+            LayoutEngine.RefreshViewer("buff")
+        end
+    end)
 end
 
 --------------------------------------------------------------------------------
@@ -79,7 +89,7 @@ end
 --------------------------------------------------------------------------------
 
 function LayoutEngine.GetViewerFrame(viewerKey)
-    return _G[module.CONSTANTS.VIEWER_NAMES[viewerKey]]
+    return module:GetViewerFrame(viewerKey)
 end
 
 function LayoutEngine.IsLayoutDrivenByBlizzardHook(viewerKey)
@@ -175,6 +185,59 @@ local function AssignItemsToRows(items, rows, viewerKey)
         slotStart = slotEnd + 1
     end
     
+    return rowAssignments, visibleItems
+end
+
+local Preview = module.Preview
+
+local ViewerBehavior = {}
+
+function ViewerBehavior.ShouldHideBeforeLayout(viewerKey, viewer, settings)
+    if viewerKey ~= "buff" then return false end
+    local blizz = _G["BuffIconCooldownViewer"]
+    local wantPreview = (settings.showPreview == true) and (settings.previewIconCount or 0) > 0
+    return blizz and not blizz:IsShown() and not wantPreview
+end
+
+function ViewerBehavior.WantsPreviewWhenEmpty(viewerKey, settings)
+    return viewerKey == "buff"
+        and (settings.showPreview == true)
+        and (settings.previewIconCount or 0) > 0
+end
+
+function ViewerBehavior.ShouldRunLayoutWithNoItems(viewerKey, settings)
+    if ViewerBehavior.WantsPreviewWhenEmpty(viewerKey, settings) then return true end
+    return module.IsCustomViewerId and module:IsCustomViewerId(viewerKey)
+end
+
+function ViewerBehavior.HidePreviewIfBuff(viewerKey, viewer)
+    if viewerKey == "buff" and Preview and Preview.HidePreviewFrames then
+        Preview.HidePreviewFrames(viewer)
+    end
+end
+
+function ViewerBehavior.ApplyPostLayout(viewerKey, viewer, visibleItems)
+    if viewerKey ~= "buff" or not Preview or not visibleItems[1] then return end
+    if Preview.IsPreviewItem and Preview.IsPreviewItem(visibleItems[1].item) then
+        if Preview.ApplyPreviewFakeData then
+            Preview.ApplyPreviewFakeData(viewer, visibleItems)
+        end
+    end
+end
+
+local function GetRowAssignmentsWithPreview(viewer, viewerKey, settings, items, rows)
+    local rowAssignments, visibleItems = AssignItemsToRows(items, rows, viewerKey)
+    local showPreview = ViewerBehavior.WantsPreviewWhenEmpty(viewerKey, settings) and #visibleItems == 0
+
+    if showPreview and Preview and Preview.BuildPreviewItems then
+        local totalSlots = GetTotalCapacity(rows)
+        local count = math.min(settings.previewIconCount or 6, totalSlots)
+        local fakeItems = Preview.BuildPreviewItems(viewer, count)
+        rowAssignments, visibleItems = AssignItemsToRows(fakeItems, rows, viewerKey)
+    else
+        ViewerBehavior.HidePreviewIfBuff(viewerKey, viewer)
+    end
+
     return rowAssignments, visibleItems
 end
 
@@ -364,17 +427,22 @@ function LayoutEngine.RefreshViewer(viewerKey)
         layoutRunning[viewerKey] = false
         return
     end
-    
-    -- Buff viewer special case: respect Blizzard's visibility
-    if viewerKey == "buff" then
-        local blizzBuffViewer = _G["BuffIconCooldownViewer"]
-        if blizzBuffViewer and not blizzBuffViewer:IsShown() then
-            viewer:Hide()
-            layoutRunning[viewerKey] = false
-            return
-        end
+
+    local Visibility = TavernUI and TavernUI.Visibility
+    local visibilityConfig = module:GetSetting("general.visibility")
+    if Visibility and visibilityConfig and not Visibility.ShouldShow(visibilityConfig) then
+        viewer:Hide()
+        layoutRunning[viewerKey] = false
+        return
     end
-    
+
+    if ViewerBehavior.ShouldHideBeforeLayout(viewerKey, viewer, settings) then
+        viewer:Hide()
+        ViewerBehavior.HidePreviewIfBuff(viewerKey, viewer)
+        layoutRunning[viewerKey] = false
+        return
+    end
+
     viewer:Show()
 
     local rows = GetActiveRows(settings)
@@ -382,27 +450,33 @@ function LayoutEngine.RefreshViewer(viewerKey)
         layoutRunning[viewerKey] = false
         return
     end
-    
-    local items = module.ItemRegistry.GetItemsForViewer(viewerKey)
-    if not items or #items == 0 then
+
+    local items = module.ItemRegistry.GetItemsForViewer(viewerKey) or {}
+    if #items == 0 and not ViewerBehavior.ShouldRunLayoutWithNoItems(viewerKey, settings) then
+        ViewerBehavior.HidePreviewIfBuff(viewerKey, viewer)
         layoutRunning[viewerKey] = false
         return
     end
-    
-    local rowAssignments, visibleItems = AssignItemsToRows(items, rows, viewerKey)
 
-    -- Build set of assigned items for cleanup
+    local rowAssignments, visibleItems = GetRowAssignmentsWithPreview(viewer, viewerKey, settings, items, rows)
+
     local assignedItems = {}
     for _, entry in ipairs(visibleItems) do
         assignedItems[entry.item] = true
     end
-    
+    for _, item in ipairs(items) do
+        if item.frame and not assignedItems[item] then
+            item.frame:Hide()
+            item.frame:ClearAllPoints()
+        end
+    end
     for _, item in ipairs(items) do
         item:setInLayout(assignedItems[item] == true)
     end
 
     local parentFrame = module.ItemRegistry.GetParentFrameForViewer(viewerKey)
     ApplyLayout(viewer, parentFrame, rowAssignments, rows, viewerKey)
+    ViewerBehavior.ApplyPostLayout(viewerKey, viewer, visibleItems)
     StyleViewerCooldowns(viewerKey)
 
     layoutRunning[viewerKey] = false

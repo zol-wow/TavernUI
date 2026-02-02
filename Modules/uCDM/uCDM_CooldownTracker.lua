@@ -81,10 +81,16 @@ function CooldownTracker.UpdateActionSlot(slot)
         return CooldownTracker.UpdateItem(id)
     end
     local startTime, duration, enable = GetActionCooldown(slot)
-    if type(startTime) ~= "number" or type(duration) ~= "number" or duration <= 0 then
+    local durationObj
+    local ok = pcall(function()
+        if type(startTime) ~= "number" or type(duration) ~= "number" or duration <= 0 then
+            return
+        end
+        durationObj = Helpers.CreateCooldownDuration(startTime, duration)
+    end)
+    if not ok or not durationObj then
         return { duration = nil, stackDisplay = nil }
     end
-    local durationObj = Helpers.CreateCooldownDuration(startTime, duration)
     return {
         duration = durationObj,
         stackDisplay = nil,
@@ -206,7 +212,8 @@ function CooldownTracker.UpdateEntry(entry)
     local icon = GetIcon(frame)
     if icon then
         local hasCooldown = data.duration or data.buffRemaining or data.chargeDuration
-        if hasCooldown then
+
+        if hasCooldown ~= nil then
             icon:SetDesaturation(1)
             icon:SetVertexColor(1.0, 1.0, 1.0)
         elseif data.isUsable == false then

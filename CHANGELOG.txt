@@ -1,5 +1,11 @@
 TavernUI Changelog
 ==================
+v1.0.0-beta-9 (2026-02-20)
+ - Custom viewers
+ - Visibility configuration
+ - KNOWN issues
+   - Saturation on custom spells even when they are availble is broken
+
 v1.0.0-beta-8a (2026-02-20)
  - Fix some more scaling issues, pixel perfect?
    - If you have issues try playing with your CDM scale

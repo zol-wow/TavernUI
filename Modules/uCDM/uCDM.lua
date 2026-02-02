@@ -39,6 +39,14 @@ local defaults = {
             combat = 0.3,
             initial = 0.05,
         },
+        visibility = {
+            combat = { showInCombat = true, showOutOfCombat = true },
+            target = { showWhenTargetExists = false },
+            group = { showSolo = true, showParty = true, showRaid = true },
+            hideWhenInVehicle = false,
+            hideWhenMounted = false,
+            hideWhenMountedWhen = "both",
+        },
     },
     viewers = {
         essential = {
@@ -135,6 +143,8 @@ local defaults = {
         buff = {
             enabled = true,
             scale = 1.0,
+            showPreview = false,
+            previewIconCount = 6,
             anchorConfig = {
                 target = "TavernUI.uCDM.essential",
                 point = "BOTTOM",
@@ -191,12 +201,12 @@ local defaults = {
             rows = {
                 {
                     name = "Default",
-                    iconCount = 4,
-                    iconSize = 40,
+                    iconCount = 8,
+                    iconSize = 38,
                     padding = 4,
                     yOffset = 0,
                     aspectRatioCrop = 1.0,
-                    zoom = 0,
+                    zoom = 0.08,
                     iconBorderSize = 1,
                     iconBorderColor = {r = 0, g = 0, b = 0, a = 1},
                     rowBorderSize = 0,
@@ -214,14 +224,67 @@ local defaults = {
         },
     },
     customEntries = {},
+    customViewers = {},
     positions = {},
 }
 
 TavernUI:RegisterModuleDefaults("uCDM", defaults, true)
 
+local function CopyTableShallow(src)
+    if type(src) ~= "table" then return src end
+    local t = {}
+    for k, v in pairs(src) do
+        t[k] = (type(v) == "table" and v ~= src) and CopyTableShallow(v) or v
+    end
+    return t
+end
+
+local DEFAULT_CUSTOM_VIEWER_SETTINGS = {
+    enabled = true,
+    scale = 1.0,
+    anchorConfig = nil,
+    rowGrowDirection = "down",
+    rowSpacing = 5,
+    showKeybinds = false,
+    keybindSize = 10,
+    keybindPoint = "TOPLEFT",
+    keybindOffsetX = 2,
+    keybindOffsetY = -2,
+    keybindColor = {r = 1, g = 1, b = 1, a = 1},
+    disableTooltips = false,
+    rows = {
+        {
+            name = "Default",
+            iconCount = 8,
+            iconSize = 38,
+            padding = 4,
+            yOffset = 0,
+            aspectRatioCrop = 1.0,
+            zoom = 0.08,
+            iconBorderSize = 1,
+            iconBorderColor = {r = 0, g = 0, b = 0, a = 1},
+            rowBorderSize = 0,
+            rowBorderColor = {r = 0, g = 0, b = 0, a = 1},
+            durationSize = 18,
+            durationPoint = "CENTER",
+            durationOffsetX = 0,
+            durationOffsetY = 0,
+            stackSize = 16,
+            stackPoint = "BOTTOMRIGHT",
+            stackOffsetX = 0,
+            stackOffsetY = 0,
+        },
+    },
+}
+
+function module:GetDefaultCustomViewerSettings()
+    return CopyTableShallow(DEFAULT_CUSTOM_VIEWER_SETTINGS)
+end
+
 function module:OnInitialize()
     pcall(function() SetCVar("cooldownViewerEnabled", 1) end)
     self:RegisterMessage("TavernUI_ProfileChanged", "OnProfileChanged")
+    self.CustomViewerFrames = {}
 
     -- Initialize subsystems in order
     if self.ItemRegistry then self.ItemRegistry.Initialize() end
@@ -271,9 +334,13 @@ end
 
 function module:OnDisable()
     self.__onEnableCalled = nil
+    if self._visibilityCallbackId and TavernUI.Visibility and TavernUI.Visibility.UnregisterCallback then
+        TavernUI.Visibility.UnregisterCallback(self._visibilityCallbackId)
+        self._visibilityCallbackId = nil
+    end
     self:UnregisterAllEvents()
     self:StopUpdateLoop()
-    
+
     if self.ItemRegistry then
         self.ItemRegistry.Reset()
     end
@@ -328,11 +395,18 @@ end
 
 function module:Update()
     if not self:IsEnabled() then return end
-    
-    -- Update ALL items (we now control all frames)
+
     if self.ItemRegistry then
         for _, viewerKey in ipairs(CONSTANTS.VIEWER_KEYS) do
-            local items = self.ItemRegistry.GetItemsForViewer(viewerKey)
+            if viewerKey ~= "custom" then
+                local items = self.ItemRegistry.GetItemsForViewer(viewerKey)
+                for _, item in ipairs(items) do
+                    item:update()
+                end
+            end
+        end
+        for _, id in ipairs(self:GetCustomViewerIds()) do
+            local items = self.ItemRegistry.GetItemsForViewer(id)
             for _, item in ipairs(items) do
                 item:update()
             end
@@ -343,16 +417,32 @@ end
 function module:OnPlayerEnteringWorld()
     if not self:IsEnabled() then return end
     self:StartUpdateLoop()
-
-    local reg = self.ItemRegistry
-    if reg then
-        reg.HookBlizzardViewers()
-        reg.LoadCustomEntries()
-        for _, viewerKey in ipairs({"essential", "utility", "buff"}) do
-            reg.CollectBlizzardItems(viewerKey)
-        end
+    if TavernUI.Visibility and TavernUI.Visibility.RegisterCallback and not self._visibilityCallbackId then
+        self._visibilityCallbackId = TavernUI.Visibility.RegisterCallback(function()
+            if self:IsEnabled() then self:RefreshAllViewers() end
+        end)
     end
-    self:RefreshAllViewers()    
+
+    C_Timer.After(0, function()
+        if not self:IsEnabled() then return end
+        for _, entry in ipairs(self:GetSetting("customViewers", {})) do
+            if entry and entry.id and not self.CustomViewerFrames[entry.id] then
+                self:CreateCustomViewerFrame(entry.id, entry.name)
+            end
+        end
+        if self.Anchoring and self.Anchoring.RegisterAnchors then
+            self.Anchoring.RegisterAnchors()
+        end
+        local reg = self.ItemRegistry
+        if reg then
+            reg.HookBlizzardViewers()
+            reg.LoadCustomEntries()
+            for _, viewerKey in ipairs({"essential", "utility", "buff"}) do
+                reg.CollectBlizzardItems(viewerKey)
+            end
+        end
+        self:RefreshAllViewers()
+    end)
 end
 
 function module:OnEquipmentChanged()
@@ -402,12 +492,27 @@ function module:HandleEnabledChange(newValue, oldValue)
     if newValue then
         if self:IsEnabled() then
             self:StartUpdateLoop()
+            if TavernUI.Visibility and TavernUI.Visibility.RegisterCallback and not self._visibilityCallbackId then
+                self._visibilityCallbackId = TavernUI.Visibility.RegisterCallback(function()
+                    if self:IsEnabled() then self:RefreshAllViewers() end
+                end)
+            end
             self:RefreshAllViewers()
         end
     else
+        if self._visibilityCallbackId and TavernUI.Visibility and TavernUI.Visibility.UnregisterCallback then
+            TavernUI.Visibility.UnregisterCallback(self._visibilityCallbackId)
+            self._visibilityCallbackId = nil
+        end
         self:StopUpdateLoop()
         for _, viewerKey in ipairs(CONSTANTS.VIEWER_KEYS) do
             local viewer = self:GetViewerFrame(viewerKey)
+            if viewer then
+                viewer:Hide()
+            end
+        end
+        for _, id in ipairs(self:GetCustomViewerIds()) do
+            local viewer = self:GetViewerFrame(id)
             if viewer then
                 viewer:Hide()
             end
@@ -421,7 +526,12 @@ local REFRESH_DEBOUNCE_SEC = 0.15
 
 function module:RefreshAllViewers()
     for _, viewerKey in ipairs(CONSTANTS.VIEWER_KEYS) do
-        self:RefreshViewer(viewerKey)
+        if viewerKey ~= "custom" then
+            self:RefreshViewer(viewerKey)
+        end
+    end
+    for _, id in ipairs(self:GetCustomViewerIds()) do
+        self:RefreshViewer(id)
     end
 end
 
@@ -438,10 +548,11 @@ function module:RefreshViewer(viewerKey)
         refreshTimers[viewerKey] = nil
         if not self:IsEnabled() then return end
 
-        if viewerKey ~= "custom" and self.ItemRegistry then
+        local skipBlizzard = (viewerKey == "custom") or self:IsCustomViewerId(viewerKey)
+        if not skipBlizzard and self.ItemRegistry then
             self.ItemRegistry.CollectBlizzardItems(viewerKey)
         end
-        
+
         if self.LayoutEngine then
             self.LayoutEngine.RefreshViewer(viewerKey)
         end
@@ -488,7 +599,52 @@ function module:GetViewerSettings(viewerKey)
 end
 
 function module:GetViewerFrame(viewerKey)
-    return _G[CONSTANTS.VIEWER_NAMES[viewerKey]]
+    if CONSTANTS.VIEWER_NAMES[viewerKey] then
+        return _G[CONSTANTS.VIEWER_NAMES[viewerKey]]
+    end
+    if self:IsCustomViewerId(viewerKey) and self.CustomViewerFrames then
+        return self.CustomViewerFrames[viewerKey]
+    end
+    return nil
+end
+
+function module:CreateCustomViewerFrame(id, name)
+    if self.CustomViewerManager and self.CustomViewerManager.CreateCustomViewerFrame then
+        return self.CustomViewerManager.CreateCustomViewerFrame(self, id, name)
+    end
+end
+
+function module:RemoveCustomViewer(id)
+    if self.CustomViewerManager and self.CustomViewerManager.RemoveCustomViewer then
+        self.CustomViewerManager.RemoveCustomViewer(self, id)
+    end
+end
+
+function module:SetCustomViewerName(id, name)
+    if self.CustomViewerManager and self.CustomViewerManager.SetCustomViewerName then
+        self.CustomViewerManager.SetCustomViewerName(self, id, name)
+    end
+end
+
+function module:GetCustomViewerIds()
+    if self.CustomViewerManager and self.CustomViewerManager.GetCustomViewerIds then
+        return self.CustomViewerManager.GetCustomViewerIds(self)
+    end
+    return {}
+end
+
+function module:IsCustomViewerId(viewerKey)
+    if self.CustomViewerManager and self.CustomViewerManager.IsCustomViewerId then
+        return self.CustomViewerManager.IsCustomViewerId(self, viewerKey)
+    end
+    return false
+end
+
+function module:GetCustomViewerDisplayName(viewerKey)
+    if self.CustomViewerManager and self.CustomViewerManager.GetCustomViewerDisplayName then
+        return self.CustomViewerManager.GetCustomViewerDisplayName(self, viewerKey)
+    end
+    return viewerKey
 end
 
 function module:IsEnabled()

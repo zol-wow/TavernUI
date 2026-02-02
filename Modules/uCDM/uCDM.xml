@@ -1,6 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
     <!-- Core module definition -->
     <Script file="uCDM.lua"/>
+    <Script file="uCDM_CustomViewerManager.lua"/>
 
     <!-- Cooldown tracking (helpers first, then tracker) -->
     <Script file="uCDM_CooldownTrackerHelpers.lua"/>
@@ -11,6 +12,9 @@
 
     <!-- Item management (uses CooldownItem) -->
     <Script file="uCDM_ItemRegistry.lua"/>
+
+    <!-- Buff preview (placeholder icons when no buffs) -->
+    <Script file="uCDM_Preview.lua"/>
 
     <!-- Layout and positioning (uses ItemRegistry) -->
     <Script file="uCDM_LayoutEngine.lua"/>
