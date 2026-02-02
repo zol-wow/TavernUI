@@ -1,5 +1,18 @@
 TavernUI Changelog
 ==================
+v1.0.0-beta-8a (2026-02-20)
+ - Fix some more scaling issues, pixel perfect?
+   - If you have issues try playing with your CDM scale
+ - Auto width for Resoruce bars to anchor targets, see above, scaling sucks
+ - Import / Export controls, because sharing is caring
+ - NEW: Spell scanner, tracks spells out of combat, and applies their timers in combat
+   - We are a little dumb at the moment, so this is more a learner rather than applier (coming soon.)
+ - Fix: Auto scaling everyones UI to 1x... sorry
+ - Fix: Anchor this anchor that, shouldn't accidently set sail anymore when you leave combat
+ - Fix: Apparently resource bars for Druids changing forms in combat
+ - Added some basic sensible CDM defaults, minus resource bars
+ - General: Options and code tidy for stability
+
 v1.0.0-beta-7 (2026-02-20)
  - Fix: Scaling issue with Icons (Custom vs Blizzard)
  - Fix: Keybinds not showing on custom Icons
