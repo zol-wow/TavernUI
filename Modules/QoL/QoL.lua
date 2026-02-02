@@ -126,6 +126,7 @@ function module:ApplyScaleForResolution(width, height)
     local scale = GetScaleForHeight(height)
     self:SetSetting("uiScaleMode", "manual")
     self:SetSetting("uiScale", scale)
+    self:SetSetting("uiScaleManagedByQoL", true)
     self:ApplyUIScale()
 end
 
@@ -139,6 +140,7 @@ local defaults = {
     fpsBackup = nil,
     uiScaleMode = "manual",
     uiScale = 1.0,
+    uiScaleManagedByQoL = false,
     hidePlayerFrame = false,
 }
 TavernUI:RegisterModuleDefaults("QoL", defaults, true)
@@ -148,6 +150,9 @@ function module:OnInitialize()
     if TavernUI.RegisterModuleOptions then
         self:RegisterOptions()
     end
+    self.playerFrameHiddenParent = CreateFrame("Frame", nil, UIParent)
+    self.playerFrameHiddenParent:SetAllPoints()
+    self.playerFrameHiddenParent:Hide()
 end
 
 function module:OnEnable()
@@ -160,19 +165,34 @@ function module:OnEnable()
     self:SetupBoPConfirm()
     self:ApplyLootSettings()
     self:ApplyFrameHider()
-    self:ApplyUIScale()
+    if self:GetSetting("uiScaleManagedByQoL", false) then
+        self:ApplyUIScale()
+    end
 end
 
 function module:OnDisable()
+    if PlayerFrame and not InCombatLockdown() then
+        PlayerFrame:SetParent(UIParent)
+    elseif PlayerFrame then
+        self.pendingFrameHiderRestore = true
+    end
     self:UnregisterAllEvents()
+    if self.pendingFrameHiderRestore then
+        self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnDisableRestorePlayerFrame")
+    end
     self.saleTotal = nil
     self:CancelLootTicker()
     if self.bopFrame then
         self.bopFrame:UnregisterEvent("LOOT_BIND_CONFIRM")
         self.bopFrame:SetScript("OnEvent", nil)
     end
+end
+
+function module:OnDisableRestorePlayerFrame()
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED", "OnDisableRestorePlayerFrame")
+    self.pendingFrameHiderRestore = nil
     if PlayerFrame then
-        PlayerFrame:Show()
+        PlayerFrame:SetParent(UIParent)
     end
 end
 
@@ -180,16 +200,46 @@ function module:OnProfileChanged()
     if self:IsEnabled() then
         self:ApplyLootSettings()
         self:ApplyFrameHider()
+        if self:GetSetting("uiScaleManagedByQoL", false) then
+            self:ApplyUIScale()
+        end
     end
 end
 
 function module:ApplyFrameHider()
     if not PlayerFrame then return end
-    if self:GetSetting("hidePlayerFrame", false) then
-        PlayerFrame:Hide()
-    else
-        PlayerFrame:Show()
+    if InCombatLockdown() then
+        if not self.pendingFrameHiderApply then
+            self.pendingFrameHiderApply = true
+            self:RegisterEvent("PLAYER_REGEN_ENABLED", "ApplyFrameHiderDeferred")
+        end
+        return
     end
+    local hide = self:GetSetting("hidePlayerFrame", false)
+    if hide then
+        if not self.playerFrameSetParentHook then
+            self.playerFrameSetParentHook = true
+            hooksecurefunc(PlayerFrame, "SetParent", function(frame, parent)
+                if parent ~= module.playerFrameHiddenParent and module:IsEnabled() and module:GetSetting("hidePlayerFrame", false) then
+                    if InCombatLockdown() and frame:IsProtected() then
+                        module.pendingFrameHiderApply = true
+                        module:RegisterEvent("PLAYER_REGEN_ENABLED", "ApplyFrameHiderDeferred")
+                    else
+                        frame:SetParent(module.playerFrameHiddenParent)
+                    end
+                end
+            end)
+        end
+        PlayerFrame:SetParent(self.playerFrameHiddenParent)
+    else
+        PlayerFrame:SetParent(UIParent)
+    end
+end
+
+function module:ApplyFrameHiderDeferred()
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED", "ApplyFrameHiderDeferred")
+    self.pendingFrameHiderApply = nil
+    self:ApplyFrameHider()
 end
 
 function module:OnMerchantShow()
@@ -729,6 +779,7 @@ function module:RegisterOptions()
                         get = function() return self:GetSetting("uiScaleMode", "manual") end,
                         set = function(_, v)
                             self:SetSetting("uiScaleMode", v)
+                            self:SetSetting("uiScaleManagedByQoL", true)
                             self:ApplyUIScale()
                         end,
                     },
@@ -744,6 +795,7 @@ function module:RegisterOptions()
                         get = function() return self:GetSetting("uiScale", 1.0) end,
                         set = function(_, v)
                             self:SetSetting("uiScale", v)
+                            self:SetSetting("uiScaleManagedByQoL", true)
                             self:ApplyUIScale()
                         end,
                         disabled = function() return self:GetSetting("uiScaleMode", "manual") ~= "manual" end,
