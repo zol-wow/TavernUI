@@ -88,6 +88,56 @@ local function CopyRowWithColorFix(sourceRow)
     return newRow
 end
 
+local function RefreshViewerComponents(viewerKey, property)
+    if not module:IsEnabled() then return end
+
+    local layoutProperties = {
+        iconCount = true,
+        orientation = true,
+        padding = true,
+        rowSpacing = true,
+        yOffset = true,
+        iconSize = true,
+        aspectRatioCrop = true,
+        rowBorderSize = true,
+        rows = true,
+        keepRowHeightWhenEmpty = true,
+        scale = true,
+        showPreview = true,
+        previewIconCount = true,
+    }
+    
+    if layoutProperties[property] then
+        if module.RefreshViewer then
+            module:RefreshViewer(viewerKey)
+        elseif module.LayoutEngine then
+            module.LayoutEngine.RefreshViewer(viewerKey)
+        end
+        if viewerKey == "buff" and (property == "showPreview" or property == "previewIconCount") and module.LayoutEngine then
+            C_Timer.After(0, function()
+                if module:IsEnabled() then
+                    module.LayoutEngine.RefreshViewer("buff")
+                end
+            end)
+        end
+    elseif property == "anchorConfig" or property == "anchorCategory" or 
+           property:match("^anchorConfig%.") then
+        if module.Anchoring then
+            module.Anchoring.RefreshViewer(viewerKey)
+        end
+    elseif property == "showKeybinds" or property == "keybindSize" or 
+           property == "keybindColor" or property == "keybindPoint" or
+           property == "keybindOffsetX" or property == "keybindOffsetY" then
+        if module.Keybinds then
+            module.Keybinds.RefreshViewer(viewerKey)
+        end
+    else
+        if module.LayoutEngine then
+            module.LayoutEngine.RefreshViewer(viewerKey)
+        end
+    end
+end
+
 local function RefreshViewerAndOptions(viewerKey)
     RefreshViewerComponents(viewerKey, "rows")
     RefreshOptions(true)
@@ -212,56 +262,6 @@ local function GetViewerDisplayName(_, viewerKey)
     return (viewerKey == "essential" and L["ESSENTIAL"]) or (viewerKey == "utility" and L["UTILITY"]) or (viewerKey == "buff" and L["BUFF"]) or module:GetCustomViewerDisplayName(viewerKey) or viewerKey
 end
 module.GetViewerDisplayName = GetViewerDisplayName
-
-local function RefreshViewerComponents(viewerKey, property)
-    if not module:IsEnabled() then return end
-
-    local layoutProperties = {
-        iconCount = true,
-        orientation = true,
-        padding = true,
-        rowSpacing = true,
-        yOffset = true,
-        iconSize = true,
-        aspectRatioCrop = true,
-        rowBorderSize = true,
-        rows = true,
-        keepRowHeightWhenEmpty = true,
-        scale = true,
-        showPreview = true,
-        previewIconCount = true,
-    }
-    
-    if layoutProperties[property] then
-        if module.RefreshViewer then
-            module:RefreshViewer(viewerKey)
-        elseif module.LayoutEngine then
-            module.LayoutEngine.RefreshViewer(viewerKey)
-        end
-        if viewerKey == "buff" and (property == "showPreview" or property == "previewIconCount") and module.LayoutEngine then
-            C_Timer.After(0, function()
-                if module:IsEnabled() then
-                    module.LayoutEngine.RefreshViewer("buff")
-                end
-            end)
-        end
-    elseif property == "anchorConfig" or property == "anchorCategory" or 
-           property:match("^anchorConfig%.") then
-        if module.Anchoring then
-            module.Anchoring.RefreshViewer(viewerKey)
-        end
-    elseif property == "showKeybinds" or property == "keybindSize" or 
-           property == "keybindColor" or property == "keybindPoint" or
-           property == "keybindOffsetX" or property == "keybindOffsetY" then
-        if module.Keybinds then
-            module.Keybinds.RefreshViewer(viewerKey)
-        end
-    else
-        if module.LayoutEngine then
-            module.LayoutEngine.RefreshViewer(viewerKey)
-        end
-    end
-end
 
 local Anchor = LibStub("LibAnchorRegistry-1.0", true)
 
