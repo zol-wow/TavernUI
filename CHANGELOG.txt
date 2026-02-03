@@ -1,5 +1,8 @@
 TavernUI Changelog
 ==================
+v1.0.0-beta-10a (2026-02-03)
+ - FIX: Remove Row on CDM
+
 v1.0.0-beta-10 (2026-02-03)
  - NEW: Castbars
  - NEW: Cursor and Crosshairs
