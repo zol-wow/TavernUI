@@ -30,6 +30,45 @@ local function GetCount(frame)
     return frame and (frame.Count or frame.count)
 end
 
+local function AreTooltipsDisabledInEditMode(viewerKey)
+    if not viewerKey then return false end
+    
+    local viewerFrame = module:GetViewerFrame(viewerKey)
+    if not viewerFrame then return false end
+    
+    if module:IsCustomViewerId(viewerKey) then
+        local LibEditMode = LibStub("LibEditMode", true)
+        if LibEditMode then
+            if LibEditMode.frameSettings and LibEditMode.frameSettings[viewerFrame] then
+                local settings = LibEditMode.frameSettings[viewerFrame]
+                if settings.showTooltip == false or settings.tooltipEnabled == false then
+                    return true
+                end
+            end
+            
+            if LibEditMode.GetFrameSetting then
+                local tooltipSetting = LibEditMode:GetFrameSetting(viewerFrame, "showTooltip")
+                if tooltipSetting == false then
+                    return true
+                end
+                tooltipSetting = LibEditMode:GetFrameSetting(viewerFrame, "tooltipEnabled")
+                if tooltipSetting == false then
+                    return true
+                end
+            end
+        end
+    else
+        if viewerFrame.GetSettingValue and Enum.EditModeCooldownViewerSetting then
+            local showTooltips = viewerFrame:GetSettingValue(Enum.EditModeCooldownViewerSetting.ShowTooltips)
+            if showTooltips == 0 then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
 function CooldownItem.new(config)
     local self = setmetatable({}, CooldownItem)
 
@@ -218,6 +257,7 @@ function CooldownItem:_setupCustomFrameTooltips(frame)
     local item = self
     frame:SetScript("OnEnter", function()
         if module:GetSetting("viewers." .. (item.viewerKey or "custom") .. ".disableTooltips") then return end
+        if AreTooltipsDisabledInEditMode(item.viewerKey) then return end
         if GameTooltip_SetDefaultAnchor then
             GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
             GameTooltip:ClearAllPoints()
@@ -452,6 +492,7 @@ function CooldownItem:_applyTextStyle(rowConfig)
         if cooldown then
             if cooldown.text then
                 SetTextLevel(cooldown.text)
+                cooldown.text:SetParent(textOverlay)
                 TavernUI:ApplyFont(cooldown.text, scaleRef, durationSize)
                 cooldown.text:ClearAllPoints()
                 cooldown.text:SetPoint(durationPoint, frame, durationPoint, pxDurX, pxDurY)
@@ -459,6 +500,7 @@ function CooldownItem:_applyTextStyle(rowConfig)
             for _, region in ipairs({cooldown:GetRegions()}) do
                 if region and region.GetObjectType and region:GetObjectType() == "FontString" then
                     SetTextLevel(region)
+                    region:SetParent(textOverlay)
                     TavernUI:ApplyFont(region, scaleRef, durationSize)
                     region:ClearAllPoints()
                     region:SetPoint(durationPoint, frame, durationPoint, pxDurX, pxDurY)

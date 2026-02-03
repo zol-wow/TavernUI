@@ -99,17 +99,37 @@ end
 
 local function ApplyBarColor(bar, notInterruptible)
     if not bar.statusBar then return end
-    if notInterruptible then
-        local settings = module:GetUnitSettings(bar.unitKey) or {}
-        local c = settings.notInterruptibleColor
-        if c then
-            bar.statusBar:SetStatusBarColor(c.r, c.g, c.b, c.a or 1)
-        else
-            bar.statusBar:SetStatusBarColor(0.7, 0.2, 0.2, 1)
+    
+    local settings = module:GetUnitSettings(bar.unitKey) or {}
+    local interruptibleColor = settings.notInterruptibleColor or {r = 0.7, g = 0.2, b = 0.2, a = 1}
+    local normalR, normalG, normalB, normalA = module:GetBarColor(bar.unitKey)
+    
+    local ok = false
+    if bar.statusBar.SetStatusBarColorFromBoolean then
+        ok = pcall(bar.statusBar.SetStatusBarColorFromBoolean, bar.statusBar,
+            notInterruptible,
+            interruptibleColor.r, interruptibleColor.g, interruptibleColor.b, interruptibleColor.a or 1,
+            normalR, normalG, normalB, normalA or 1
+        )
+    end
+    
+    if not ok and bar.statusBar.SetVertexColorFromBoolean then
+        ok = pcall(bar.statusBar.SetVertexColorFromBoolean, bar.statusBar,
+            notInterruptible,
+            interruptibleColor.r, interruptibleColor.g, interruptibleColor.b, interruptibleColor.a or 1,
+            normalR, normalG, normalB, normalA or 1
+        )
+    end
+    
+    if not ok then
+        local statusBarTexture = bar.statusBar:GetStatusBarTexture()
+        if statusBarTexture and statusBarTexture.SetVertexColorFromBoolean then
+            pcall(statusBarTexture.SetVertexColorFromBoolean, statusBarTexture,
+                notInterruptible,
+                interruptibleColor.r, interruptibleColor.g, interruptibleColor.b, interruptibleColor.a or 1,
+                normalR, normalG, normalB, normalA or 1
+            )
         end
-    else
-        local r, g, b, a = module:GetBarColor(bar.unitKey)
-        bar.statusBar:SetStatusBarColor(r, g, b, a)
     end
 end
 

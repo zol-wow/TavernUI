@@ -588,6 +588,12 @@ function TavernUI:InitializeOptions()
     
     local originalOpen = AceConfigDialog.Open
     AceConfigDialog.Open = function(self, appName, ...)
+        if appName == "TavernUI" then
+            local uCDM = TavernUI:GetModule("uCDM", true)
+            if uCDM and uCDM.RefreshOptions then
+                uCDM:RefreshOptions(true)
+            end
+        end
         local result = originalOpen(self, appName, ...)
         
         if appName == "TavernUI" then

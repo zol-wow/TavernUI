@@ -1025,46 +1025,22 @@ end
 
 function Options:Initialize()
     local args = {
-        general = {
-            type = "group",
-            name = L["GENERAL"],
-            order = 1,
-            args = {
-                enabled = {
-                    type = "toggle",
-                    name = L["ENABLED"],
-                    desc = L["ENABLE_CASTBAR_MODULE_DESC"],
-                    order = 1,
-                    get = function()
-                        return module:GetSetting("enabled", true)
-                    end,
-                    set = function(_, value)
-                        module:SetSetting("enabled", value)
-                        if value then
-                            module:Enable()
-                        else
-                            module:Disable()
-                        end
-                    end,
-                },
-            },
-        },
         player = {
             type = "group",
             name = L["PLAYER"],
-            order = 2,
+            order = 1,
             args = BuildUnitOptions(CONSTANTS.UNIT_PLAYER),
         },
         target = {
             type = "group",
             name = L["TARGET"],
-            order = 3,
+            order = 2,
             args = BuildUnitOptions(CONSTANTS.UNIT_TARGET),
         },
         focus = {
             type = "group",
             name = L["FOCUS"],
-            order = 4,
+            order = 3,
             args = BuildUnitOptions(CONSTANTS.UNIT_FOCUS),
         },
     }

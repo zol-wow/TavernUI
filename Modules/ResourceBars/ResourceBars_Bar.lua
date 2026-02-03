@@ -6,6 +6,8 @@ local Bar = {}
 local DEFAULT_SEGMENT_TEXTURE = "Interface\\TargetingFrame\\UI-StatusBar"
 local DEFAULT_BACKGROUND_TEXTURE = "Interface\\Buttons\\WHITE8x8"
 
+local TEXT_OVERLAY_LEVEL = 600
+
 local function GetSegmentTexturePath(config)
     local key = config and config.segmentTexture
     return TavernUI:GetTexturePath(key, "statusbar", DEFAULT_SEGMENT_TEXTURE)
@@ -196,6 +198,9 @@ local function CreatePowerBar(barId, config)
     frame.borderOverlay = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     frame.borderOverlay:SetAllPoints(frame)
     frame.borderOverlay:SetFrameLevel(frame.bar:GetFrameLevel() + 1)
+    frame.textOverlay = CreateFrame("Frame", nil, frame)
+    frame.textOverlay:SetAllPoints(frame)
+    frame.textOverlay:SetFrameLevel(TEXT_OVERLAY_LEVEL)
     ApplyBarBorder(frame, config)
     frame.barId = barId
     frame.config = config
@@ -264,6 +269,9 @@ local function CreateSegmentedBar(barId, config)
     frame.segments = {}
     frame.barId = barId
     frame.config = config
+    frame.textOverlay = CreateFrame("Frame", nil, frame)
+    frame.textOverlay:SetAllPoints(frame)
+    frame.textOverlay:SetFrameLevel(TEXT_OVERLAY_LEVEL)
     if type(config.frameLevel) == "number" then
         frame:SetFrameLevel(config.frameLevel)
     end

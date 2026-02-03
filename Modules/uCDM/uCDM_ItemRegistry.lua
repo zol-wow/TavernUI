@@ -90,10 +90,11 @@ function ItemRegistry.HookBlizzardViewers()
             end)
         end)
 
-        if not module.LayoutEngine.IsLayoutDrivenByBlizzardHook(viewerKey) then
+        local LayoutEngine = module.LayoutEngine
+        if LayoutEngine and not LayoutEngine.IsLayoutDrivenByBlizzardHook(viewerKey) then
             viewer:HookScript("OnSizeChanged", function(self)
                 if not module:IsEnabled() then return end
-                if module.LayoutEngine.IsSettingViewerSize(viewerKey) then return end
+                if LayoutEngine.IsSettingViewerSize(viewerKey) then return end
                 module:RefreshViewer(viewerKey)
             end)
         end

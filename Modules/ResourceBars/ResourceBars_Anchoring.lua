@@ -305,11 +305,12 @@ function Anchoring:RegisterBar(barId, frame)
         LibEditMode:AddFrame(frame, function(f, layoutName, point, x, y)
             local id = barId
             local key = module:IsSpecialResourceType(id) and "SpecialResource" or (module:IsResourceBarType(id) and "ResourceBar" or id)
+            -- Store position for this layout (used during edit mode)
             local positions = GetEditModeLayoutPositions()
             if not positions[layoutName] then positions[layoutName] = {} end
             positions[layoutName][key] = { point = point, x = x, y = y }
-            local config = module:GetBarConfig(id)
-            local ac = (config and config.anchorConfig and type(config.anchorConfig) == "table") and config.anchorConfig or {}
+
+            -- Update anchor config (will be applied when edit mode exits)
             local newConfig = {
                 target = "UIParent",
                 point = point,
@@ -318,10 +319,8 @@ function Anchoring:RegisterBar(barId, frame)
                 offsetY = y,
             }
             SetBarAnchorConfig(id, newConfig)
-            positions[layoutName][key] = nil
-            if not module:IsResourceBarType(id) and not module:IsSpecialResourceType(id) then
-                Anchoring:ApplyAnchor(id)
-            end
+            -- Note: Don't clear positions or apply anchor here - we're still in edit mode
+            -- Anchor will be applied when edit mode exits via the exit callback
         end, default, displayName)
         libEditModeRegisteredBars[barId] = true
         CreateEditOverlay(barId, frame)

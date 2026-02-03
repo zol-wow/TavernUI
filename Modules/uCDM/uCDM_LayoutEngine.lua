@@ -23,6 +23,13 @@ local CONSTANTS = {
 local layoutRunning = {}
 local layoutSettingSize = {}
 
+local LAYOUT_DEBUG = false
+local function LayoutDebug(fmt, ...)
+    if LAYOUT_DEBUG and (fmt ~= nil) then
+        print("[uCDM Layout]", string.format(tostring(fmt), ...))
+    end
+end
+
 --------------------------------------------------------------------------------
 -- Initialization
 --------------------------------------------------------------------------------
@@ -39,6 +46,9 @@ local function InstallRefreshLayoutHooks()
                         module.ItemRegistry.CollectBlizzardItems(viewerKey)
                     end
                     LayoutEngine.RefreshViewer(viewerKey)
+                    if module.Keybinds then
+                        module.Keybinds.RefreshViewer(viewerKey)
+                    end
                 end)
             end
         end
@@ -176,19 +186,19 @@ local function AssignItemsToRows(items, rows, viewerKey)
 
     local slotStart = 1
     for rowNum, rowConfig in ipairs(rows) do
-        local slotEnd = slotStart + rowConfig.iconCount - 1
+        local slotEnd = slotStart + (rowConfig.iconCount or 0) - 1
         rowAssignments[rowNum] = {}
-        
+
         for _, entry in ipairs(visibleItems) do
             local slot = entry.layoutIndex
             if slot >= slotStart and slot <= slotEnd then
                 rowAssignments[rowNum][#rowAssignments[rowNum] + 1] = entry.item
             end
         end
-        
+
         slotStart = slotEnd + 1
     end
-    
+
     return rowAssignments, visibleItems
 end
 
@@ -263,14 +273,7 @@ local function CalculateDimensions(viewer, rowAssignments, rows, viewerKey)
     
     for rowNum, rowConfig in ipairs(rows) do
         local rowItems = rowAssignments[rowNum] or {}
-        local actualIcons = 0
-        if rowItems then
-            for slot = 1, rowConfig.iconCount do
-                if rowItems[slot] then
-                    actualIcons = actualIcons + 1
-                end
-            end
-        end
+        local actualIcons = rowItems and #rowItems or 0
         local iconSize = rowConfig.iconSize
         local aspectRatio = rowConfig.aspectRatioCrop
         local iconHeight = iconSize / aspectRatio
@@ -449,7 +452,7 @@ local function BuildRowMetrics(viewer, viewerKey, rowConfig, rowItems)
     }
 end
 
-local function LayoutRowItems(parentFrame, viewer, rowItems, rowConfig, metrics, rowCenterY, rowCenterX)
+local function LayoutRowItems(viewer, rowItems, rowConfig, metrics, rowCenterY, rowCenterX)
     if metrics.actualIcons <= 0 then
         return
     end
@@ -460,102 +463,32 @@ local function LayoutRowItems(parentFrame, viewer, rowItems, rowConfig, metrics,
     local actualIcons = metrics.actualIcons
     rowCenterX = rowCenterX or 0
 
-    if metrics.vertical then
-        local actualBlockHeight = actualIcons * pxIconH + (actualIcons - 1) * pxPad
-        local startY = rowCenterY + actualBlockHeight / 2 - pxIconH / 2
-        for col, item in ipairs(rowItems) do
-            if item.frame then
-                local offsetY = startY - (col - 1) * (pxIconH + pxPad)
-                offsetY = math.floor(offsetY + 0.5)
-                item:setLayoutPosition(parentFrame, viewer, rowCenterX, offsetY)
-                item:applyStyle(rowConfig)
-            end
-        end
-    else
-        local actualBlockWidth = actualIcons * pxIcon + (actualIcons - 1) * pxPad
-        local startX = rowCenterX - actualBlockWidth / 2 + pxIcon / 2
-        for col, item in ipairs(rowItems) do
-            if item.frame then
-                local offsetX = startX + (col - 1) * (pxIcon + pxPad)
-                item:setLayoutPosition(parentFrame, viewer, offsetX, rowCenterY)
-                item:applyStyle(rowConfig)
-            end
-        end
-    end
-end
+    for col, item in ipairs(rowItems) do
+        local frame = item.frame
+        if frame then
+            frame:SetParent(viewer)
+            frame:SetFrameLevel(viewer:GetFrameLevel() + 3)
+            frame:ClearAllPoints()
 
-local function BuildGridStructure(rows, viewerKey)
-    local gridRows = {}
-    local rowToGridRow = {}
-    local rowToGridCol = {}
-    
-    local isCustom = module.IsCustomViewerId and module:IsCustomViewerId(viewerKey)
-    local currentGridRow = 0
-    local currentGridCol = 0
-    
-    for rowNum, rowConfig in ipairs(rows) do
-        local positionAtSide = isCustom and rowConfig.positionAtSide == true
-        
-        if positionAtSide and rowNum > 1 then
-            currentGridCol = currentGridCol + 1
-        else
-            currentGridRow = currentGridRow + 1
-            currentGridCol = 0
-        end
-        
-        if not gridRows[currentGridRow] then
-            gridRows[currentGridRow] = {}
-        end
-        
-        gridRows[currentGridRow][currentGridCol] = {
-            rowNum = rowNum,
-            rowConfig = rowConfig,
-        }
-        
-        rowToGridRow[rowNum] = currentGridRow
-        rowToGridCol[rowNum] = currentGridCol
-    end
-    
-    return gridRows, rowToGridRow, rowToGridCol
-end
+            local uX, uY
+            if metrics.vertical then
+                local actualBlockHeight = actualIcons * pxIconH + (actualIcons - 1) * pxPad
+                local startY = rowCenterY + actualBlockHeight / 2 - pxIconH / 2
+                uX = math.floor((rowCenterX or 0) + 0.5)
+                uY = math.floor(startY - (col - 1) * (pxIconH + pxPad) + 0.5)
+            else
+                local actualBlockWidth = actualIcons * pxIcon + (actualIcons - 1) * pxPad
+                local startX = rowCenterX - actualBlockWidth / 2 + pxIcon / 2
+                uX = math.floor(startX + (col - 1) * (pxIcon + pxPad) + 0.5)
+                uY = math.floor(rowCenterY + 0.5)
+            end
 
-local function AssignItemsToGridCells(items, rows, viewerKey)
-    local capacity = GetTotalCapacity(rows)
-    local context = { viewerKey = viewerKey, inCombat = InCombatLockdown() }
-    
-    local visibleItems = {}
-    for _, item in ipairs(items) do
-        if item.enabled ~= false and item.frame and item:isVisible(context) then
-            local layoutIdx = item.layoutIndex or item.index or (#visibleItems + 1)
-            if layoutIdx <= capacity then
-                visibleItems[#visibleItems + 1] = { item = item, layoutIndex = layoutIdx }
-            end
+            frame:SetPoint("CENTER", viewer, "CENTER", uX, uY)
+            frame:SetSize(pxIcon, pxIconH)
+            item:applyStyle(rowConfig)
+            frame:Show()
         end
     end
-    
-    table.sort(visibleItems, function(a, b) return a.layoutIndex < b.layoutIndex end)
-    
-    local gridCells = {}
-    local slotStart = 1
-    
-    for rowNum, rowConfig in ipairs(rows) do
-        local slotEnd = slotStart + rowConfig.iconCount - 1
-        
-        for _, entry in ipairs(visibleItems) do
-            local slot = entry.layoutIndex
-            if slot >= slotStart and slot <= slotEnd then
-                local cellSlot = slot - slotStart + 1
-                if not gridCells[rowNum] then
-                    gridCells[rowNum] = {}
-                end
-                gridCells[rowNum][cellSlot] = entry.item
-            end
-        end
-        
-        slotStart = slotEnd + 1
-    end
-    
-    return gridCells, visibleItems
 end
 
 local function ComputeRowPosition(growDirection, rowNum, metrics, currentX, previousActualRowWidth, currentY, currentGroupHeight, rowGap, pxYOffset)
@@ -586,126 +519,14 @@ local function ComputeRowPosition(growDirection, rowNum, metrics, currentX, prev
     return rowCenterX, rowCenterY, currentX, previousActualRowWidth, currentGroupHeight, currentY
 end
 
-local function ApplyGridLayout(viewer, parentFrame, gridCells, rows, viewerKey)
-    local settings = module:GetViewerSettings(viewerKey)
-    local growDirection = (settings and settings.rowGrowDirection) or "down"
-    
-    local gridRows, rowToGridRow, rowToGridCol = BuildGridStructure(rows, viewerKey)
-    
-    local maxRowWidth, totalHeight, rowGap, maxActualContentWidth = CalculateDimensions(viewer, gridCells, rows, viewerKey)
-    
-    HideAllRowBorders(viewer, rows)
-    
-    local startY = (growDirection == "up") and (-totalHeight / 2) or (totalHeight / 2)
-    local currentY = startY
-    
-    local columnCenters = {}
-    local columnWidths = {}
-    
-    for gridRowNum = 0, #gridRows do
-        local gridRow = gridRows[gridRowNum]
-        if not gridRow then break end
-        
-        local maxRowHeight = 0
-        local currentX = 0
-        
-        for gridColNum = 0, #gridRow do
-            local gridCell = gridRow[gridColNum]
-            if not gridCell then break end
-            
-            local rowNum = gridCell.rowNum
-            local rowConfig = gridCell.rowConfig
-            local rowItems = gridCells[rowNum] or {}
-            
-            local metrics = BuildRowMetrics(viewer, viewerKey, rowConfig, rowItems)
-            if metrics then
-                local pxYOffset = TavernUI:GetPixelSize(viewer, rowConfig.yOffset or 0, 1)
-                
-                if gridColNum == 0 then
-                    columnCenters[gridColNum] = 0
-                    columnWidths[gridColNum] = metrics.actualRowWidth
-                else
-                    local prevWidth = columnWidths[gridColNum - 1] or 0
-                    local prevCenter = columnCenters[gridColNum - 1] or 0
-                    columnCenters[gridColNum] = prevCenter + prevWidth / 2 + rowGap + metrics.actualRowWidth / 2
-                    columnWidths[gridColNum] = metrics.actualRowWidth
-                end
-                
-                local rowCenterX = columnCenters[gridColNum]
-                local rowCenterY = (growDirection == "up")
-                    and (currentY - metrics.rowHeight / 2 + pxYOffset)
-                    or (currentY + metrics.rowHeight / 2 + pxYOffset)
-                
-                if metrics.vertical then
-                    local actualBlockHeight = metrics.actualIcons * metrics.pxIconH + (metrics.actualIcons - 1) * metrics.pxPad
-                    local startY = rowCenterY + actualBlockHeight / 2 - metrics.pxIconH / 2
-                    for slot = 1, rowConfig.iconCount do
-                        local item = rowItems[slot]
-                        if item and item.frame then
-                            local offsetY = startY - (slot - 1) * (metrics.pxIconH + metrics.pxPad)
-                            offsetY = math.floor(offsetY + 0.5)
-                            item:setLayoutPosition(parentFrame, viewer, rowCenterX, offsetY)
-                            item:applyStyle(rowConfig)
-                        end
-                    end
-                else
-                    local actualBlockWidth = metrics.actualIcons * metrics.pxIcon + (metrics.actualIcons - 1) * metrics.pxPad
-                    local startX = rowCenterX - actualBlockWidth / 2 + metrics.pxIcon / 2
-                    for slot = 1, rowConfig.iconCount do
-                        local item = rowItems[slot]
-                        if item and item.frame then
-                            local offsetX = startX + (slot - 1) * (metrics.pxIcon + metrics.pxPad)
-                            item:setLayoutPosition(parentFrame, viewer, offsetX, rowCenterY)
-                            item:applyStyle(rowConfig)
-                        end
-                    end
-                end
-                
-                ApplyRowBorder(viewer, rowNum, rowConfig, metrics.rowWidth, metrics.rowHeight, rowCenterY, rowCenterX)
-                
-                maxRowHeight = math.max(maxRowHeight, metrics.rowHeight)
-            end
-        end
-        
-        if gridRowNum > 0 then
-            if growDirection == "up" then
-                currentY = currentY + maxRowHeight + rowGap
-            else
-                currentY = currentY - maxRowHeight - rowGap
-            end
-        else
-            if growDirection == "up" then
-                currentY = currentY + maxRowHeight
-            else
-                currentY = currentY - maxRowHeight
-            end
-        end
-    end
-    
-    local effectiveWidth = (maxActualContentWidth > 0) and maxActualContentWidth or maxRowWidth
-    if effectiveWidth > 0 and totalHeight > 0 then
-        layoutSettingSize[viewerKey] = true
-        pcall(function()
-            viewer:SetSize(effectiveWidth, totalHeight)
-        end)
-        layoutSettingSize[viewerKey] = nil
-        local Anchor = LibStub("LibAnchorRegistry-1.0", true)
-        if Anchor and Anchor.NotifySizeChanged then
-            Anchor:NotifySizeChanged("TavernUI.uCDM." .. viewerKey)
-        end
-    end
-end
-
-local function ApplyLayout(viewer, parentFrame, rowAssignments, rows, viewerKey)
+local function ApplyLayout(viewer, rowAssignments, rows, viewerKey)
     local settings = module:GetViewerSettings(viewerKey)
     local growDirection = (settings and settings.rowGrowDirection) or "down"
     
     local maxRowWidth, totalHeight, rowGap, maxActualContentWidth = CalculateDimensions(viewer, rowAssignments, rows, viewerKey)
     
-    -- Hide all row borders first to prevent artifacts
     HideAllRowBorders(viewer, rows)
     
-    -- Starting Y position
     local currentY = (growDirection == "up") and (-totalHeight / 2) or (totalHeight / 2)
     local currentX = 0
     local previousActualRowWidth = 0
@@ -721,7 +542,7 @@ local function ApplyLayout(viewer, parentFrame, rowAssignments, rows, viewerKey)
             rowCenterX, rowCenterY, currentX, previousActualRowWidth, currentGroupHeight, currentY =
                 ComputeRowPosition(growDirection, rowNum, metrics, currentX, previousActualRowWidth, currentY, currentGroupHeight, rowGap, pxYOffset)
 
-            LayoutRowItems(parentFrame, viewer, rowItems, rowConfig, metrics, rowCenterY, rowCenterX)
+            LayoutRowItems(viewer, rowItems, rowConfig, metrics, rowCenterY, rowCenterX)
             ApplyRowBorder(viewer, rowNum, rowConfig, metrics.rowWidth, metrics.rowHeight, rowCenterY, rowCenterX)
 
             previousActualRowWidth = metrics.actualRowWidth
@@ -826,8 +647,7 @@ function LayoutEngine.RefreshViewer(viewerKey)
         item:setInLayout(assignedItems[item] == true)
     end
 
-    local parentFrame = module.ItemRegistry.GetParentFrameForViewer(viewerKey)
-    ApplyLayout(viewer, parentFrame, rowAssignments, rows, viewerKey)
+    ApplyLayout(viewer, rowAssignments, rows, viewerKey)
     ViewerBehavior.ApplyPostLayout(viewerKey, viewer, visibleItems)
     StyleViewerCooldowns(viewerKey)
     done()

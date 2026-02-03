@@ -1,5 +1,12 @@
 TavernUI Changelog
 ==================
+v1.0.0-beta-11 (2026-02-03)
+ - FIX: Keybinds not showing anymore
+ - FIX: Anchoring going and coming back between reloads (TEMP requires de-anchor before edit mode)
+ - FIX: Buffs hippaty hoppitying around - They should honour the locations
+ - FIX: Resource Bars Text Layering
+ - FIX: Spell Casting Interupt Colour
+
 v1.0.0-beta-10a (2026-02-03)
  - FIX: Remove Row on CDM
 

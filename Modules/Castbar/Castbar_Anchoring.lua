@@ -274,10 +274,12 @@ function Anchoring:RegisterBar(unitKey, frame)
         LibEditMode:AddFrame(frame, function(f, layoutName, point, x, y)
             local uKey = f.unitKey
             if not uKey then return end
+            -- Store position for this layout (used during edit mode)
             local positions = GetEditModeLayoutPositions()
             if not positions[layoutName] then positions[layoutName] = {} end
             positions[layoutName][uKey] = { point = point, x = x, y = y }
 
+            -- Update anchor config (will be applied when edit mode exits)
             SetAnchorConfig(uKey, {
                 target = "UIParent",
                 point = point,
@@ -285,8 +287,8 @@ function Anchoring:RegisterBar(unitKey, frame)
                 offsetX = x,
                 offsetY = y,
             })
-            positions[layoutName][uKey] = nil
-            Anchoring:ApplyAnchor(uKey)
+            -- Note: Don't clear positions or apply anchor here - we're still in edit mode
+            -- Anchor will be applied when edit mode exits via the exit callback
         end, default, displayName)
 
         libEditModeRegistered[unitKey] = true
@@ -493,9 +495,24 @@ function Anchoring:Cleanup()
     end
 end
 
+local function OnLibEditModeExit()
+    if not module:IsEnabled() then return end
+    -- Apply all anchors when edit mode exits
+    for _, unitKey in ipairs({ "player", "target", "focus" }) do
+        if libEditModeRegistered[unitKey] then
+            Anchoring:ApplyAnchor(unitKey)
+        end
+    end
+end
+
 function Anchoring:Initialize()
     self:UpdateAnchors()
     HookEditMode()
+
+    -- Register LibEditMode exit callback to apply anchors when edit mode ends
+    if useLibEditMode and LibEditMode.RegisterCallback then
+        LibEditMode:RegisterCallback("exit", OnLibEditModeExit)
+    end
 end
 
 module.Anchoring = Anchoring

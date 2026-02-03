@@ -93,23 +93,6 @@ local function FormatTag(barId, tag, result)
     return FormatOneTag(barId, tag, result)
 end
 
-local TEXT_ABOVE_FRAME_LEVEL_OFFSET = 1
-
-local function GetTopFrameLevel(region)
-    if not region or not region.GetFrameLevel then return 0 end
-    local level = region:GetFrameLevel()
-    if region.GetNumChildren and region.GetChildren then
-        for i = 1, region:GetNumChildren() do
-            local child = select(i, region:GetChildren())
-            if child and child.GetFrameLevel then
-                local childLevel = child:GetFrameLevel()
-                if childLevel > level then level = childLevel end
-            end
-        end
-    end
-    return level
-end
-
 local function GetOrCreateFontString(frame, config)
     if type(frame.barTextFs) == "table" and frame.barTextFs[1] then
         frame.barTextFs = frame.barTextFs[1]
@@ -118,8 +101,9 @@ local function GetOrCreateFontString(frame, config)
         return frame.barTextFs
     end
     frame.barTextFs = nil
+    local parent = frame.textOverlay or frame
     local size = (type(config.barTextFontSize) == "number" and config.barTextFontSize > 0) and config.barTextFontSize or 12
-    local fs = TavernUI:CreateFontString(frame, size, nil, "OVERLAY", frame)
+    local fs = TavernUI:CreateFontString(frame, size, nil, "OVERLAY", parent)
     if fs then
         frame.barTextFs = fs
     end
@@ -143,9 +127,8 @@ function Text:Apply(barId, frame, config, result)
     end
     local fs = GetOrCreateFontString(frame, config)
     if not fs then return end
-    local topLevel = GetTopFrameLevel(frame)
-    if fs.SetFrameLevel then
-        fs:SetFrameLevel(math.max(topLevel, 1) + TEXT_ABOVE_FRAME_LEVEL_OFFSET)
+    if frame.textOverlay and fs.SetParent and fs:GetParent() ~= frame.textOverlay then
+        fs:SetParent(frame.textOverlay)
     end
     local point = config.barTextPoint or "CENTER"
     local relPoint = config.barTextRelativePoint or point

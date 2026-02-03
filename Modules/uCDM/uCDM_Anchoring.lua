@@ -15,31 +15,15 @@ end
 local Anchoring = {}
 local libEditModeRegisteredViewers = {}
 
-local CONSTANTS = {
-    POSITION_CHANGE_THRESHOLD = 1,
-}
-
 local anchorHandles = {}
 local lastAppliedConfig = {}
 local anchorTimers = {}
-local editModeStartPositions = {}
+local editModeSavePending = false
 local editModeHooked = false
 
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
-
-local function GetViewerPosition(viewer)
-    if not viewer then return nil end
-    return Anchor:GetFramePosition(viewer)
-end
-
-local function HasPositionChanged(viewerKey, startPos)
-    if not startPos then return false end
-    local viewer = module:GetViewerFrame(viewerKey)
-    if not viewer then return false end
-    return Anchor:HasPositionChanged(viewer, startPos, CONSTANTS.POSITION_CHANGE_THRESHOLD)
-end
 
 local function ShouldApplyAnchor(viewerKey)
     local settings = module:GetViewerSettings(viewerKey)
@@ -153,13 +137,14 @@ function Anchoring.RegisterViewer(viewerKey, viewerFrame)
         displayName = GetViewerDisplayName(viewerKey),
         category = "ucdm",
     })
-    if useLibEditMode and not libEditModeRegisteredViewers[viewerKey] then
+    if useLibEditMode and not libEditModeRegisteredViewers[viewerKey] and module:IsCustomViewerId(viewerKey) then
         local settings = module:GetViewerSettings(viewerKey)
         local ac = (settings and settings.anchorConfig and type(settings.anchorConfig) == "table") and settings.anchorConfig or {}
         local default = (ac.point and ac.offsetX and ac.offsetY) and { point = ac.point, x = ac.offsetX or 0, y = ac.offsetY or 0 } or { point = "CENTER", x = 0, y = -150 }
         LibEditMode:AddFrame(viewerFrame, function(f, layoutName, point, x, y)
             local key = f.viewerKey
             if not key then return end
+            -- Update anchor config (will be applied when edit mode exits)
             module:SetSetting("viewers." .. key .. ".anchorConfig", {
                 target = "UIParent",
                 point = point or "CENTER",
@@ -167,9 +152,8 @@ function Anchoring.RegisterViewer(viewerKey, viewerFrame)
                 offsetX = x or 0,
                 offsetY = y or 0,
             })
-            if ShouldApplyAnchor(key) then
-                ApplyAnchor(key)
-            end
+            -- Note: Don't apply anchor here - we're still in edit mode
+            -- Anchor will be applied when edit mode exits via FlushEditModeSave
         end, default, GetViewerDisplayName(viewerKey))
         viewerFrame.viewerKey = viewerKey
         libEditModeRegisteredViewers[viewerKey] = true
@@ -223,42 +207,58 @@ end
 local function OnEditModeEnter()
     if not module:IsEnabled() then return end
 
+    -- Only handle custom viewers during edit mode enter
+    -- Built-in viewers (essential, utility, buff) are Blizzard frames
+    -- and should NOT be touched - Blizzard's Edit Mode manages them
     for _, entry in ipairs(module:GetSetting("customViewers", {})) do
-        if entry and entry.id and not module:GetViewerFrame(entry.id) then
-            module:CreateCustomViewerFrame(entry.id, entry.name or "Custom")
+        if entry and entry.id then
+            if not module:GetViewerFrame(entry.id) then
+                module:CreateCustomViewerFrame(entry.id, entry.name or "Custom")
+            end
+            local viewer = module:GetViewerFrame(entry.id)
+            if viewer then
+                Anchoring.RegisterViewer(entry.id, viewer)
+                viewer:Show()
+            end
         end
     end
-    Anchoring.RegisterAnchors()
+end
 
-    editModeStartPositions = {}
+local EDIT_MODE_FLUSH_DELAY = 0
+
+local function FlushEditModeSave()
+    editModeSavePending = false
+    if not module:IsEnabled() then return end
+
+    -- Clear cached config state so anchors are force-reapplied
+    -- This is necessary because Blizzard's Edit Mode may have repositioned frames,
+    -- and we need to reapply our anchors even if the config hasn't changed
+    for _, viewerKey in ipairs(GetAllViewerKeys()) do
+        lastAppliedConfig[viewerKey] = nil
+    end
 
     for _, viewerKey in ipairs(GetAllViewerKeys()) do
-        local viewer = module:GetViewerFrame(viewerKey)
-        if viewer then
-            viewer:Show()
-            if ShouldApplyAnchor(viewerKey) then
-                editModeStartPositions[viewerKey] = GetViewerPosition(viewer)
-            end
+        -- Only apply anchor if config exists
+        -- Don't release existing anchors if there's no config - that would break frames
+        -- that were positioned by other means (e.g., default positioning)
+        if ShouldApplyAnchor(viewerKey) then
+            ApplyAnchorWithSizeHook(viewerKey)
+        end
+        -- Note: We intentionally don't call ReleaseAnchor here if no config exists
+        -- The frame should keep its current position/anchor
+    end
+    for _, viewerKey in ipairs(GetAllViewerKeys()) do
+        if module.LayoutEngine then
+            module.LayoutEngine.RefreshViewer(viewerKey)
         end
     end
 end
 
 local function OnEditModeSave()
     if not module:IsEnabled() then return end
-
-    for _, viewerKey in ipairs(GetAllViewerKeys()) do
-        local startPos = editModeStartPositions[viewerKey]
-
-        if startPos then
-            if HasPositionChanged(viewerKey, startPos) then
-                ReleaseAnchor(viewerKey)
-            else
-                ApplyAnchorWithSizeHook(viewerKey)
-            end
-        end
-    end
-
-    editModeStartPositions = {}
+    if editModeSavePending then return end
+    editModeSavePending = true
+    FlushEditModeSave()
 end
 
 local function HookEditMode()
@@ -292,17 +292,17 @@ end
 
 function Anchoring.RefreshViewer(viewerKey)
     if not module:IsEnabled() then return end
-    
+
     -- Skip if Edit Mode is active
     local EditModeManagerFrame = _G.EditModeManagerFrame
     if EditModeManagerFrame and EditModeManagerFrame:IsShown() then
         return
     end
-    
+
+    -- Only apply anchor if config exists
+    -- Don't release existing anchors if there's no config
     if ShouldApplyAnchor(viewerKey) then
         ApplyAnchorWithSizeHook(viewerKey)
-    else
-        ReleaseAnchor(viewerKey)
     end
 end
 

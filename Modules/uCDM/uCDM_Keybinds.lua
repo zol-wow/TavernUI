@@ -132,39 +132,35 @@ local function BuildActionButtonCache()
     actionButtonsCached = true
 end
 
-local function GetKeybindFromActionButton(button)
+local function GetActionSlot(button)
     if not button then return nil end
 
-    local action = GetActionSlot(button)
-    if action then
-        local keybind = GetKeybindFromActionSlot(action)
-        if keybind then return keybind end
+    local action
+    local buttonName = button.GetName and button:GetName()
+
+    if buttonName and buttonName:match("^BT4Button") then
+        action = button._state_action
     end
 
-    local buttonName = button:GetName()
-    if buttonName then
-        local key = GetBindingKey("CLICK " .. buttonName .. ":LeftButton")
-        if key then return FormatKeybind(key) end
+    if not action or action == 0 then
+        if type(button.action) == "number" and button.action > 0 then
+            action = button.action
+        end
     end
 
-    local hotkeyRegions = {button.HotKey, button.hotKey}
-    for _, hotkey in ipairs(hotkeyRegions) do
-        if hotkey then
-            local ok, text = pcall(function() return hotkey:GetText() end)
-            if ok and text and text ~= "" and text ~= RANGE_INDICATOR then
-                return FormatKeybind(text)
+    if (not action or action == 0) and button.GetAction then
+        local ok, r1, r2 = pcall(button.GetAction, button)
+        if ok then
+            if type(r1) == "number" and r1 > 0 then
+                action = r1
+            elseif type(r2) == "number" and r2 > 0 then
+                action = r2
             end
         end
     end
 
-    if button.GetHotkey then
-        local ok, hotkey = pcall(function() return button:GetHotkey() end)
-        if ok and hotkey and hotkey ~= "" then
-            return FormatKeybind(hotkey)
-        end
-    end
-
-    return nil
+    if not action or action == 0 then return nil end
+    return action
 end
 
 local function GetBindingCommandForActionSlot(slot)
@@ -198,6 +194,41 @@ local function GetKeybindFromActionSlot(slot)
     if not cmd then return nil end
     local key = GetBindingKey(cmd)
     if key then return FormatKeybind(key) end
+    return nil
+end
+
+local function GetKeybindFromActionButton(button)
+    if not button then return nil end
+
+    local action = GetActionSlot(button)
+    if action then
+        local keybind = GetKeybindFromActionSlot(action)
+        if keybind then return keybind end
+    end
+
+    local buttonName = button:GetName()
+    if buttonName then
+        local key = GetBindingKey("CLICK " .. buttonName .. ":LeftButton")
+        if key then return FormatKeybind(key) end
+    end
+
+    local hotkeyRegions = {button.HotKey, button.hotKey}
+    for _, hotkey in ipairs(hotkeyRegions) do
+        if hotkey then
+            local ok, text = pcall(function() return hotkey:GetText() end)
+            if ok and text and text ~= "" and text ~= RANGE_INDICATOR then
+                return FormatKeybind(text)
+            end
+        end
+    end
+
+    if button.GetHotkey then
+        local ok, hotkey = pcall(function() return button:GetHotkey() end)
+        if ok and hotkey and hotkey ~= "" then
+            return FormatKeybind(hotkey)
+        end
+    end
+
     return nil
 end
 
@@ -275,48 +306,19 @@ local function ParseMacroForSpells(macroIndex)
     return spellIDs, spellNames, itemIDs
 end
 
-local function GetActionSlot(button)
-    if not button then return nil end
-
-    local action
-    local buttonName = button.GetName and button:GetName()
-
-    if buttonName and buttonName:match("^BT4Button") then
-        action = button._state_action
-    end
-
-    if not action or action == 0 then
-        if type(button.action) == "number" and button.action > 0 then
-            action = button.action
-        end
-    end
-
-    if (not action or action == 0) and button.GetAction then
-        local ok, r1, r2 = pcall(button.GetAction, button)
-        if ok then
-            if type(r1) == "number" and r1 > 0 then
-                action = r1
-            elseif type(r2) == "number" and r2 > 0 then
-                action = r2
-            end
-        end
-    end
-
-    if not action or action == 0 then return nil end
-    return action
-end
-
 local function ProcessActionButton(button)
     local action = GetActionSlot(button)
     if not action then return end
 
     local ok, actionType, id = pcall(GetActionInfo, action)
+
     if not ok or not actionType then return end
 
     local keybind = GetKeybindFromActionButton(button)
     if not keybind then
         keybind = GetKeybindFromActionSlot(action)
     end
+
     if not keybind then return end
 
     if actionType == "spell" and id then
