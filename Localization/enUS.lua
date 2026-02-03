@@ -594,7 +594,6 @@ L["RESET_EMPOWERED_COLORS"] = "Reset Colors"
 L["RESET_EMPOWERED_COLORS_DESC"] = "Reset all empowered colors to defaults"
 L["COPY_FROM"] = "Copy From"
 L["COPY_FROM_DESC"] = "Copy all settings from another castbar"
-
 L["CURSOR_CROSSHAIR"] = "Cursor & Crosshair"
 L["ENABLE_CURSOR_CROSSHAIR_MODULE_DESC"] = "Enable the Cursor & Crosshair module"
 L["CURSOR_RING"] = "Cursor Ring"
