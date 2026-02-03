@@ -54,6 +54,21 @@ local function GetCastInfo(unit)
         end
     end
 
+    if notInterruptible ~= nil then
+        local isSecret = issecretvalue and issecretvalue(notInterruptible)
+        if not isSecret then
+            local ok, val = pcall(function() return not not notInterruptible end)
+            if ok then
+                notInterruptible = val
+            else
+                isSecret = true
+            end
+        end
+        if isSecret then
+            notInterruptible = false
+        end
+    end
+
     return spellName, text, texture, startTimeMS, endTimeMS, notInterruptible,
            unitSpellID, isChanneled, channelStages, durationObj, hasSecretTiming
 end
