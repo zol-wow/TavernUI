@@ -119,9 +119,12 @@ local function BuildActionButtonCache()
 
     for globalName, frame in pairs(_G) do
         if type(globalName) == "string" and type(frame) == "table" and not added[frame] then
-            if type(frame.GetObjectType) == "function" then
-                local hasAction = frame.action or (frame.GetAction and type(frame.GetAction) == "function")
-                if hasAction and globalName:match("Button%d+$") then
+            local ok, hasGetObjectType = pcall(function() return type(frame.GetObjectType) == "function" end)
+            if ok and hasGetObjectType then
+                local ok2, hasAction = pcall(function()
+                    return frame.action or (frame.GetAction and type(frame.GetAction) == "function")
+                end)
+                if ok2 and hasAction and globalName:match("Button%d+$") then
                     cachedActionButtons[#cachedActionButtons + 1] = frame
                     added[frame] = true
                 end
