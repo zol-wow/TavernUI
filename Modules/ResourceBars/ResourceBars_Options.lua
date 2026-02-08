@@ -1542,14 +1542,6 @@ function Options:Initialize()
         }
     end
     
-    AceConfig:RegisterOptionsTable("TavernUI.ResourceBars", {
-        name = L["RESOURCE_BARS"],
-        type = "group",
-        args = args,
-    })
-    
-    AceConfigDialog:AddToBlizOptions("TavernUI.ResourceBars", L["RESOURCE_BARS"], "TavernUI")
-    
     TavernUI:RegisterModuleOptions("ResourceBars", {
         type = "group",
         name = L["RESOURCE_BARS"],

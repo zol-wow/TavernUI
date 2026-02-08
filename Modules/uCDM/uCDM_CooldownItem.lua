@@ -1,5 +1,6 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local module = TavernUI:GetModule("uCDM", true)
+local PP = TavernUI.PixelPerfect
 
 if not module then return end
 
@@ -162,8 +163,8 @@ function CooldownItem:applyStyle(rowConfig)
     local aspectRatio = rowConfig.aspectRatioCrop or 1.0
     local iconHeight = iconSize / aspectRatio
     local scaleRef = module:GetViewerFrame(self.viewerKey) or frame
-    local pxW = TavernUI:GetPixelSize(scaleRef, iconSize, 0)
-    local pxH = TavernUI:GetPixelSize(scaleRef, iconHeight, 1)
+    local pxW = PP.Scale(iconSize, scaleRef, 0)
+    local pxH = PP.Scale(iconHeight, scaleRef, 1)
     local scale = frame:GetEffectiveScale() or 1
     if scale > 0 then
         pxW = math.floor(pxW * scale + 0.5) / scale
@@ -253,6 +254,25 @@ function CooldownItem:_setupCooldownStyle(frame)
     end
 end
 
+local function PropagateHoverToViewer(frame)
+    local viewer = frame:GetParent()
+    if viewer and viewer:GetScript("OnEnter") then
+        viewer:GetScript("OnEnter")(viewer)
+    end
+end
+
+local function PropagateLeaveToViewer(frame)
+    local viewer = frame:GetParent()
+    if viewer then
+        if not viewer:IsMouseOver() then
+            local onLeave = viewer:GetScript("OnLeave")
+            if onLeave then
+                onLeave(viewer)
+            end
+        end
+    end
+end
+
 function CooldownItem:_setupCustomFrameTooltips(frame)
     local item = self
     frame:SetScript("OnEnter", function()
@@ -277,9 +297,11 @@ function CooldownItem:_setupCustomFrameTooltips(frame)
             GameTooltip:SetText(item.config and item.config.name or "Custom")
         end
         GameTooltip:Show()
+        PropagateHoverToViewer(frame)
     end)
     frame:SetScript("OnLeave", function()
         GameTooltip:Hide()
+        PropagateLeaveToViewer(frame)
     end)
 end
 
@@ -296,6 +318,79 @@ function CooldownItem:_stripBlizzardCruft()
         end
     end
     if frame.OutOfRange then frame.OutOfRange:Hide() end
+    if frame.DebuffBorder then frame.DebuffBorder:SetAlpha(0) end
+    
+    for _, region in ipairs({frame:GetRegions()}) do
+        if region and region.GetAtlas then
+            local atlas = region:GetAtlas()
+            if atlas == "UI-HUD-CoolDownManager-IconOverlay" then
+                region:SetAlpha(0)
+            elseif atlas and (atlas:find("debuff-border") or atlas:find("SpellType") or atlas:find("AuraType") or atlas:find("TypeOverlay")) then
+                region:SetAlpha(0)
+            end
+        end
+    end
+    
+    if frame.SpellType then frame.SpellType:Hide() end
+    if frame.AuraType then frame.AuraType:Hide() end
+    if frame.TypeIcon then frame.TypeIcon:Hide() end
+    if frame.TypeOverlay then frame.TypeOverlay:Hide() end
+    
+    if frame.ShowPandemicStateFrame then
+        hooksecurefunc(frame, "ShowPandemicStateFrame", function(self)
+            if self.PandemicIcon then
+                self.PandemicIcon:Hide()
+            end
+            
+            if not module:GetSetting("overlays.pandemic.enabled", true) then
+                return
+            end
+            
+            local item = module.ItemRegistry and module.ItemRegistry.GetItemByFrame(self)
+            if item then
+                local color = module:GetSetting("overlays.pandemic.borderColor", {r = 1, g = 0, b = 0, a = 1})
+                local width = module:GetSetting("overlays.pandemic.borderWidth", 2)
+                
+                if item._setBorderColor then
+                    item:_setBorderColor(color.r, color.g, color.b, color.a)
+                end
+                if item._setBorderWidth then
+                    item:_setBorderWidth(width)
+                end
+            end
+        end)
+    end
+    
+    if frame.HidePandemicStateFrame then
+        hooksecurefunc(frame, "HidePandemicStateFrame", function(self)
+            if self.PandemicIcon then
+                self.PandemicIcon:Hide()
+            end
+            
+            local item = module.ItemRegistry and module.ItemRegistry.GetItemByFrame(self)
+            if item then
+                if item._restoreBorderColor then
+                    item:_restoreBorderColor()
+                end
+                if item._restoreBorderWidth then
+                    item:_restoreBorderWidth()
+                end
+            end
+        end)
+    end
+    
+    local originalOnEnter = frame:GetScript("OnEnter")
+    local originalOnLeave = frame:GetScript("OnLeave")
+    
+    frame:SetScript("OnEnter", function(...)
+        if originalOnEnter then originalOnEnter(...) end
+        PropagateHoverToViewer(frame)
+    end)
+    
+    frame:SetScript("OnLeave", function(...)
+        if originalOnLeave then originalOnLeave(...) end
+        PropagateLeaveToViewer(frame)
+    end)
 end
 
 function CooldownItem:_applyTexCoord(rowConfig)
@@ -393,7 +488,7 @@ function CooldownItem:_applyBorder(borderSize, borderColor)
                 border:SetSnapToPixelGrid(true)
             end
             if border.SetTexelSnappingBias then
-                border:SetTexelSnappingBias(0)
+                border:SetTexelSnappingBias(0.5)
             end
             return border
         end
@@ -426,7 +521,7 @@ function CooldownItem:_applyBorder(borderSize, borderColor)
     local top, bottom, left, right = unpack(frame._ucdmBorders)
     if not (top and bottom and left and right) then return end
 
-    local pixelSize = TavernUI:GetPixelSize(frame, iconBorderSize, 0)
+    local pixelSize = PP.Scale(iconBorderSize, frame, 0)
 
     if pixelSize <= 0 then
         for _, border in ipairs(frame._ucdmBorders) do
@@ -440,11 +535,172 @@ function CooldownItem:_applyBorder(borderSize, borderColor)
     left:SetWidth(pixelSize)
     right:SetWidth(pixelSize)
 
+    frame._ucdmOriginalBorderWidth = iconBorderSize
+
     local bc = borderColor or { r = 0, g = 0, b = 0, a = 1 }
+    frame._ucdmOriginalBorderColor = { r = bc.r, g = bc.g, b = bc.b, a = bc.a }
     local shouldShow = iconBorderSize > 0
     for _, border in ipairs(frame._ucdmBorders) do
         border:SetColorTexture(bc.r, bc.g, bc.b, bc.a)
         border:SetShown(shouldShow)
+    end
+end
+
+function CooldownItem:_setBorderColor(r, g, b, a)
+    local frame = self.frame
+    if not frame or not frame._ucdmBorders then return end
+    
+    a = a or (frame._ucdmOriginalBorderColor and frame._ucdmOriginalBorderColor.a) or 1
+    for _, border in ipairs(frame._ucdmBorders) do
+        border:SetColorTexture(r, g, b, a)
+    end
+end
+
+function CooldownItem:_restoreBorderColor()
+    local frame = self.frame
+    if not frame or not frame._ucdmOriginalBorderColor then return end
+    
+    local bc = frame._ucdmOriginalBorderColor
+    self:_setBorderColor(bc.r, bc.g, bc.b, bc.a)
+end
+
+function CooldownItem:_setBorderWidth(width)
+    local frame = self.frame
+    if not frame or not frame._ucdmBorders then return end
+    
+    if not frame._ucdmOriginalBorderWidth then
+        local top = frame._ucdmBorders[1]
+        if top then
+            frame._ucdmOriginalBorderWidth = top:GetHeight()
+        end
+    end
+    
+    local PP = TavernUI.PixelPerfect
+    local pixelSize = PP and PP.Scale(width, frame, 0) or width
+    
+    local top, bottom, left, right = unpack(frame._ucdmBorders)
+    if top then top:SetHeight(pixelSize) end
+    if bottom then bottom:SetHeight(pixelSize) end
+    if left then left:SetWidth(pixelSize) end
+    if right then right:SetWidth(pixelSize) end
+end
+
+function CooldownItem:_restoreBorderWidth()
+    local frame = self.frame
+    if not frame or not frame._ucdmOriginalBorderWidth then return end
+    
+    local PP = TavernUI.PixelPerfect
+    local pixelSize = PP and PP.Scale(frame._ucdmOriginalBorderWidth, frame, 0) or frame._ucdmOriginalBorderWidth
+    
+    local top, bottom, left, right = unpack(frame._ucdmBorders)
+    if top then top:SetHeight(pixelSize) end
+    if bottom then bottom:SetHeight(pixelSize) end
+    if left then left:SetWidth(pixelSize) end
+    if right then right:SetWidth(pixelSize) end
+end
+
+local function SetTextLevel(textElement)
+    if not textElement then return end
+    if not textElement.GetParent then return end
+    local parent = textElement:GetParent()
+    if parent and parent.GetObjectType and parent:GetObjectType() == "Frame" and parent.SetFrameLevel and parent.GetFrameLevel then
+        local currentLevel = parent:GetFrameLevel() or 0
+        if currentLevel < TEXT_OVERLAY_LEVEL then
+            parent:SetFrameLevel(TEXT_OVERLAY_LEVEL)
+        end
+    end
+end
+
+local function SyncDurationTexts(cd, visible)
+    if cd._ucdmDurationTexts then
+        for txt in pairs(cd._ucdmDurationTexts) do
+            txt:SetShown(visible)
+        end
+    end
+end
+
+function CooldownItem:_applyDurationTextStyle(textOverlay, scaleRef, config)
+    local cooldown = GetCooldown(self.frame)
+    if not cooldown then return end
+
+    local size = config.size
+    local point = config.point
+    local offsetX = config.offsetX
+    local offsetY = config.offsetY
+
+    cooldown._ucdmDurationTexts = cooldown._ucdmDurationTexts or {}
+
+    if cooldown.text then
+        SetTextLevel(cooldown.text)
+        cooldown.text:SetParent(textOverlay)
+        TavernUI:ApplyFont(cooldown.text, scaleRef, size)
+        cooldown.text:ClearAllPoints()
+        cooldown.text:SetPoint(point, self.frame, point, offsetX, offsetY)
+        cooldown._ucdmDurationTexts[cooldown.text] = true
+    end
+
+    for _, region in ipairs({cooldown:GetRegions()}) do
+        if region and region.GetObjectType and region:GetObjectType() == "FontString" then
+            SetTextLevel(region)
+            region:SetParent(textOverlay)
+            TavernUI:ApplyFont(region, scaleRef, size)
+            region:ClearAllPoints()
+            region:SetPoint(point, self.frame, point, offsetX, offsetY)
+            cooldown._ucdmDurationTexts[region] = true
+        end
+    end
+
+    if not cooldown._ucdmDurationVisibilityHooked then
+        cooldown._ucdmDurationVisibilityHooked = true
+        hooksecurefunc(cooldown, "Hide", function(self) SyncDurationTexts(self, false) end)
+        hooksecurefunc(cooldown, "Show", function(self) SyncDurationTexts(self, true) end)
+        hooksecurefunc(cooldown, "SetShown", function(self, shown) SyncDurationTexts(self, shown) end)
+        cooldown:HookScript("OnHide", function(self) SyncDurationTexts(self, false) end)
+        cooldown:HookScript("OnShow", function(self) SyncDurationTexts(self, true) end)
+    end
+end
+
+function CooldownItem:_applyStackTextStyle(textOverlay, scaleRef, config)
+    local frame = self.frame
+    local size = config.size
+    local point = config.point
+    local offsetX = config.offsetX
+    local offsetY = config.offsetY
+
+    local chargeFrame = frame.ChargeCount
+    if chargeFrame then
+        local fs = chargeFrame.Current or chargeFrame.Count or chargeFrame.count
+        if fs then
+            SetTextLevel(fs)
+            fs:SetParent(textOverlay)
+            TavernUI:ApplyFont(fs, scaleRef, size)
+            fs:ClearAllPoints()
+            fs:SetPoint(point, frame, point, offsetX, offsetY)
+        end
+    end
+
+    local countText = GetCount(frame)
+    if countText then
+        SetTextLevel(countText)
+        countText:SetParent(textOverlay)
+        TavernUI:ApplyFont(countText, scaleRef, size)
+        countText:ClearAllPoints()
+        countText:SetPoint(point, frame, point, offsetX, offsetY)
+    end
+
+    local applicationsFrame = frame.Applications or frame.applications
+    if applicationsFrame then
+        local applicationsText = applicationsFrame
+        if applicationsFrame.GetObjectType and applicationsFrame:GetObjectType() ~= "FontString" then
+            applicationsText = applicationsFrame.Applications or applicationsFrame.Text or applicationsFrame.text
+        end
+        if applicationsText and applicationsText.GetObjectType and applicationsText:GetObjectType() == "FontString" then
+            SetTextLevel(applicationsText)
+            applicationsText:SetParent(textOverlay)
+            TavernUI:ApplyFont(applicationsText, scaleRef, size)
+            applicationsText:ClearAllPoints()
+            applicationsText:SetPoint(point, frame, point, offsetX, offsetY)
+        end
     end
 end
 
@@ -455,17 +711,6 @@ function CooldownItem:_applyTextStyle(rowConfig)
     local scaleRef = module:GetViewerFrame(self.viewerKey) or frame
     local durationSize = rowConfig.durationSize or 0
     local stackSize = rowConfig.stackSize or 0
-    local durationPoint = rowConfig.durationPoint or "CENTER"
-    local durationOffsetX = rowConfig.durationOffsetX or 0
-    local durationOffsetY = rowConfig.durationOffsetY or 0
-    local stackPoint = rowConfig.stackPoint or "BOTTOMRIGHT"
-    local stackOffsetX = rowConfig.stackOffsetX or 0
-    local stackOffsetY = rowConfig.stackOffsetY or 0
-
-    local pxDurX = TavernUI:GetPixelSize(scaleRef, durationOffsetX, 0)
-    local pxDurY = TavernUI:GetPixelSize(scaleRef, durationOffsetY, 1)
-    local pxStackX = TavernUI:GetPixelSize(scaleRef, stackOffsetX, 0)
-    local pxStackY = TavernUI:GetPixelSize(scaleRef, stackOffsetY, 1)
 
     if not frame._ucdmTextOverlay then
         frame._ucdmTextOverlay = CreateFrame("Frame", nil, frame)
@@ -475,73 +720,22 @@ function CooldownItem:_applyTextStyle(rowConfig)
     local textOverlay = frame._ucdmTextOverlay
     textOverlay:SetFrameLevel(TEXT_OVERLAY_LEVEL)
 
-    local function SetTextLevel(textElement)
-        if not textElement then return end
-        if not textElement.GetParent then return end
-        local parent = textElement:GetParent()
-        if parent and parent.GetObjectType and parent:GetObjectType() == "Frame" and parent.SetFrameLevel and parent.GetFrameLevel then
-            local currentLevel = parent:GetFrameLevel() or 0
-            if currentLevel < TEXT_OVERLAY_LEVEL then
-                parent:SetFrameLevel(TEXT_OVERLAY_LEVEL)
-            end
-        end
-    end
-
     if durationSize > 0 then
-        local cooldown = GetCooldown(frame)
-        if cooldown then
-            if cooldown.text then
-                SetTextLevel(cooldown.text)
-                cooldown.text:SetParent(textOverlay)
-                TavernUI:ApplyFont(cooldown.text, scaleRef, durationSize)
-                cooldown.text:ClearAllPoints()
-                cooldown.text:SetPoint(durationPoint, frame, durationPoint, pxDurX, pxDurY)
-            end
-            for _, region in ipairs({cooldown:GetRegions()}) do
-                if region and region.GetObjectType and region:GetObjectType() == "FontString" then
-                    SetTextLevel(region)
-                    region:SetParent(textOverlay)
-                    TavernUI:ApplyFont(region, scaleRef, durationSize)
-                    region:ClearAllPoints()
-                    region:SetPoint(durationPoint, frame, durationPoint, pxDurX, pxDurY)
-                end
-            end
-        end
+        self:_applyDurationTextStyle(textOverlay, scaleRef, {
+            size = durationSize,
+            point = rowConfig.durationPoint or "CENTER",
+            offsetX = PP.Scale(rowConfig.durationOffsetX or 0, scaleRef, 0),
+            offsetY = PP.Scale(rowConfig.durationOffsetY or 0, scaleRef, 1),
+        })
     end
 
     if stackSize > 0 then
-        local chargeFrame = frame.ChargeCount
-        if chargeFrame then
-            local fs = chargeFrame.Current or chargeFrame.Count or chargeFrame.count
-            if fs then
-                SetTextLevel(fs)
-                TavernUI:ApplyFont(fs, scaleRef, stackSize)
-                fs:ClearAllPoints()
-                fs:SetPoint(stackPoint, frame, stackPoint, pxStackX, pxStackY)
-            end
-        end
-
-        local countText = GetCount(frame)
-        if countText then
-            SetTextLevel(countText)
-            TavernUI:ApplyFont(countText, scaleRef, stackSize)
-            countText:ClearAllPoints()
-            countText:SetPoint(stackPoint, frame, stackPoint, pxStackX, pxStackY)
-        end
-
-        local applicationsFrame = frame.Applications or frame.applications
-        if applicationsFrame then
-            local applicationsText = applicationsFrame
-            if applicationsFrame.GetObjectType and applicationsFrame:GetObjectType() ~= "FontString" then
-                applicationsText = applicationsFrame.Applications or applicationsFrame.Text or applicationsFrame.text
-            end
-            if applicationsText and applicationsText.GetObjectType and applicationsText:GetObjectType() == "FontString" then
-                SetTextLevel(applicationsText)
-                TavernUI:ApplyFont(applicationsText, scaleRef, stackSize)
-                applicationsText:ClearAllPoints()
-                applicationsText:SetPoint(stackPoint, frame, stackPoint, pxStackX, pxStackY)
-            end
-        end
+        self:_applyStackTextStyle(textOverlay, scaleRef, {
+            size = stackSize,
+            point = rowConfig.stackPoint or "BOTTOMRIGHT",
+            offsetX = PP.Scale(rowConfig.stackOffsetX or 0, scaleRef, 0),
+            offsetY = PP.Scale(rowConfig.stackOffsetY or 0, scaleRef, 1),
+        })
     end
 end
 
@@ -618,8 +812,8 @@ function CooldownItem:setKeybind(keybind, settings)
     local point = settings.keybindPoint or "TOPRIGHT"
     local offsetX = settings.keybindOffsetX or -2
     local offsetY = settings.keybindOffsetY or -2
-    local pxX = (TavernUI.GetPixelSize and TavernUI:GetPixelSize(frame, offsetX, 0)) or offsetX
-    local pxY = (TavernUI.GetPixelSize and TavernUI:GetPixelSize(frame, offsetY, 1)) or offsetY
+    local pxX = PP.Scale(offsetX, frame, 0)
+    local pxY = PP.Scale(offsetY, frame, 1)
 
     if keybind then
         local color = settings.keybindColor or {r = 1, g = 1, b = 1, a = 1}

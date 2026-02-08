@@ -12,11 +12,30 @@ local TavernUI = AceAddon:NewAddon("TavernUI",
     "AceEvent-3.0"
 )
 
+local _oUF = _G.TavernUI  -- Save oUF ref set by X-oUF header before overwrite
 _G.TavernUI = TavernUI
+TavernUI.oUF = _oUF
 
+TavernUI.WHITE8X8 = "Interface\\BUTTONS\\WHITE8X8"
+TavernUI.DEFAULT_FONT = "Fonts\\FRIZQT__.TTF"
 TavernUI.name = "TavernUI"
 TavernUI.version = C_AddOns.GetAddOnMetadata("TavernUI", "Version") or "0.0.1"
 TavernUI.author = "Mondo, LiQiuDgg"
+
+StaticPopupDialogs["TAVERNUI_RELOAD_UI"] = {
+    text = "%s",
+    button1 = "Reload UI",
+    button2 = "Later",
+    OnAccept = ReloadUI,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+function TavernUI:ShowReloadPopup(message)
+    StaticPopup_Show("TAVERNUI_RELOAD_UI", message or "A change was made that requires a UI reload to take effect.")
+end
 
 -- Master defaults table - modules will add their defaults here BEFORE OnInitialize
 TavernUI.defaults = {
@@ -110,19 +129,6 @@ end
 
 TavernUI:SetDefaultModulePrototype(TavernUI.modulePrototype)
 TavernUI:SetDefaultModuleState(false) -- Modules disabled by default, we control enabling
-
-function TavernUI:GetPixelSize(region, physicalPixels, direction)
-    if not region or not physicalPixels or physicalPixels <= 0 then
-        return physicalPixels or 0
-    end
-    if PixelUtil and PixelUtil.GetNearestPixelSize then
-        local scale = region.GetEffectiveScale and region:GetEffectiveScale()
-        if scale and scale > 0 then
-            return PixelUtil.GetNearestPixelSize(physicalPixels, scale, direction or 0)
-        end
-    end
-    return physicalPixels
-end
 
 function TavernUI:GetTexturePath(key, mediaType, default)
     if not key or key == "" then
@@ -362,19 +368,24 @@ function TavernUI:ToggleModule(moduleName, state)
         self:Print("Module not found:", moduleName)
         return false
     end
-    
+
     self.db.profile.modules[moduleName] = state
-    
-    if state then
-        self:EnableModule(moduleName)
-        self:Print("Module enabled:", moduleName)
+
+    if module.requiresReload then
+        local action = state and "Enabling" or "Disabling"
+        self:ShowReloadPopup(action .. " " .. moduleName .. " requires a UI reload to take effect.")
     else
-        self:DisableModule(moduleName)
-        self:Print("Module disabled:", moduleName)
+        if state then
+            self:EnableModule(moduleName)
+            self:Print("Module enabled:", moduleName)
+        else
+            self:DisableModule(moduleName)
+            self:Print("Module disabled:", moduleName)
+        end
     end
-    
+
     self:SendMessage("TavernUI_ModuleToggled", moduleName, state)
-    
+
     return true
 end
 
@@ -676,8 +687,19 @@ function TavernUI:RegisterModuleOptions(moduleName, moduleOptions, displayName)
         end
     end
     
+    -- Register as sub-panel in Blizzard Interface Options (Game Menu → Interface → AddOns)
+    if not self._blizRegistered then self._blizRegistered = {} end
+    if not self._blizRegistered[moduleName] then
+        local blizKey = "TavernUI." .. moduleName
+        AceConfig:RegisterOptionsTable(blizKey, function()
+            return options.args.modules.args[moduleName]
+        end)
+        AceConfigDialog:AddToBlizOptions(blizKey, displayName, "TavernUI")
+        self._blizRegistered[moduleName] = true
+    end
+
     AceConfigRegistry:NotifyChange("TavernUI")
-    
+
     C_Timer.After(0.2, function()
         local frame = AceConfigDialog.OpenFrames["TavernUI"]
         if frame and frame.frame then

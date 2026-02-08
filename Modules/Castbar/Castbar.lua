@@ -1,5 +1,6 @@
 local TavernUI = LibStub("AceAddon-3.0"):GetAddon("TavernUI")
 local module = TavernUI:NewModule("Castbar", "AceEvent-3.0")
+module.requiresReload = true
 
 local LSM = LibStub("LibSharedMedia-3.0", true)
 
@@ -9,6 +10,7 @@ local CONSTANTS = {
     UNIT_FOCUS  = "focus",
 
     TEXT_THROTTLE = 0.1,
+    CAST_RETRY_DELAY = 0.1,
     PREVIEW_DURATION = 3.0,
     PREVIEW_ICON_ID = 136048,
 
@@ -427,6 +429,9 @@ function module:RefreshCastbar(unitKey)
     castbar.icon.texture:SetPoint("TOPLEFT", castbar.icon, "TOPLEFT", borderSize, -borderSize)
     castbar.icon.texture:SetPoint("BOTTOMRIGHT", castbar.icon, "BOTTOMRIGHT", -borderSize, borderSize)
 
+    local r, g, b, a = self:GetBarColor(unitKey)
+    statusBar:SetStatusBarColor(r, g, b, a)
+
     PositionStatusBar(castbar, settings)
     PositionIcon(castbar, settings)
     PositionText(castbar.spellText, statusBar, settings.spellTextAnchor or "LEFT", settings.spellTextOffsetX or 4, settings.spellTextOffsetY or 0)
@@ -524,6 +529,15 @@ function module:OnEnable()
             HideBlizzardCastbar(unitKey)
         end
     end
+
+    local ufModule = TavernUI:GetModule("UnitFrames", true)
+    if ufModule and ufModule:IsEnabled() then
+        for _, unitKey in ipairs(UNITS) do
+            if castbars[unitKey] then
+                ufModule:UpdateFrame(unitKey)
+            end
+        end
+    end
 end
 
 function module:OnDisable()
@@ -565,8 +579,8 @@ end
 
 function module:GetBarColor(unitKey)
     local settings = GetUnitSettings(unitKey) or {}
-    if unitKey == CONSTANTS.UNIT_PLAYER and settings.useClassColor then
-        local _, classToken = UnitClass("player")
+    if settings.useClassColor then
+        local _, classToken = UnitClass(unitKey)
         if classToken then
             local cc = C_ClassColor.GetClassColor(classToken)
             if cc then return cc.r, cc.g, cc.b, 1 end
