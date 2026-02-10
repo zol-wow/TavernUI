@@ -1,5 +1,19 @@
 TavernUI Changelog
 ==================
+v1.0.0-beta-13 (2026-02-10)
+ - NEW: Unit Frames - Player, Target, Focus, Pet, Boss, and Arena frames
+ - NEW: Theme System - Customize colors and textures per unit type
+ - NEW: Per-unit options panel with theme settings
+ - NEW: LibEditMode integration - Drag boss/arena frame groups
+ - NEW: Auras, Portraits, and Indicators on unit frames
+ - NEW: Configurable bar layout ordering (health, power, info, classpower)
+ - FIX: Cast Bars - No more crashes on target casts in combat
+ - FIX: CDM - Forbidden table errors on 12.1 retail
+ - FIX: CDM - Custom spells and items should scale and layout correctly
+ - FIX: Data Bars - Gold, System, and Memory datatexts cleaned up
+ - ADJUSTMENT: DataBar options tidied up
+ - REMOVAL: Example module removed
+
 v1.0.0-beta-12 (2026-02-07)
  - FIX: Data Bars
  - FIX: Cast Bars - Interrupt + Colors
