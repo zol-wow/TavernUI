@@ -1045,14 +1045,6 @@ function Options:Initialize()
         },
     }
 
-    AceConfig:RegisterOptionsTable("TavernUI.Castbar", {
-        name = L["CASTBAR"],
-        type = "group",
-        args = args,
-    })
-
-    AceConfigDialog:AddToBlizOptions("TavernUI.Castbar", L["CASTBAR"], "TavernUI")
-
     TavernUI:RegisterModuleOptions("Castbar", {
         type = "group",
         name = L["CASTBAR"],

@@ -74,12 +74,6 @@ local Options = {}
 
 function Options:Initialize()
     local args = BuildVisibilityOptions()
-    AceConfig:RegisterOptionsTable("TavernUI.Visibility", {
-        type = "group",
-        name = L["VISIBILITY"],
-        args = args,
-    })
-    AceConfigDialog:AddToBlizOptions("TavernUI.Visibility", L["VISIBILITY"], "TavernUI")
     TavernUI:RegisterModuleOptions("Visibility", {
         type = "group",
         name = L["VISIBILITY"],
