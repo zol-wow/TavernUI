@@ -189,9 +189,11 @@ function CooldownItem:applyStyle(rowConfig)
         local viewerFrame = module:GetViewerFrame(self.viewerKey)
         if viewerFrame and viewerFrame.GetEffectiveScale and frame.GetEffectiveScale and frame.SetScale then
             local targetScale = viewerFrame:GetEffectiveScale()
-            local currentScale = frame:GetEffectiveScale()
-            if targetScale and currentScale and currentScale > 0 and math.abs(currentScale - targetScale) > 0.0001 then
-                frame:SetScale((frame:GetScale() or 1) * targetScale / currentScale)
+            local parentScale = (frame:GetParent() and frame:GetParent():GetEffectiveScale()) or targetScale
+            if parentScale and parentScale > 0 and math.abs(parentScale - targetScale) > 0.0001 then
+                frame:SetScale(targetScale / parentScale)
+            else
+                frame:SetScale(1)
             end
         end
     end

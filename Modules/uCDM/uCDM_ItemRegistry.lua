@@ -282,7 +282,7 @@ function ItemRegistry.CollectBlizzardItems(viewerKey)
 
     for i = 1, numChildren do
         local child = select(i, viewer:GetChildren())
-        if child and child ~= viewer.Selection and ItemRegistry._isIconFrame(child) then
+        if child and child ~= viewer.Selection and not child._ucdmItemId and ItemRegistry._isIconFrame(child) then
             -- Hook buff frame events if needed
             if viewerKey == "buff" and not child.__ucdmEventHooked then
                 ItemRegistry._hookBuffFrameEvents(child, viewer)
@@ -512,7 +512,7 @@ function ItemRegistry.CreateCustomItem(config, skipDBSave)
     })
 
     item:refreshIcon()
-    item:setParent(ItemRegistry.GetParentFrameForViewer(viewerKey))
+    item:setParent(viewer or ItemRegistry.GetParentFrameForViewer(viewerKey))
 
     -- Register
     itemsById[id] = item
@@ -778,7 +778,8 @@ function ItemRegistry.MoveItemToViewer(id, newViewerKey)
     item.layoutIndex = item.index
     table.insert(itemsByViewer[newViewerKey], item)
 
-    item:setParent(ItemRegistry.GetParentFrameForViewer(newViewerKey))
+    local newViewer = module:GetViewerFrame(newViewerKey)
+    item:setParent(newViewer or ItemRegistry.GetParentFrameForViewer(newViewerKey))
 
     -- Update DB
     local customEntries = module:GetSetting("customEntries", {})
