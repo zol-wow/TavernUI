@@ -1,5 +1,14 @@
 TavernUI Changelog
 ==================
+v1.0.0-beta-14 (2026-02-11)
+ - FIX: DataBar - System and Memory datatexts no longer cause "script ran too long" with many addons
+ - FIX: DataBar - Currencies datatext updates immediately when backpack tracking changes
+ - FIX: Unit Frames - Portrait renders as external square frame with configurable left/right side
+ - FIX: Unit Frames - Boss and Arena frame positions persist across /reload
+ - FIX: Unit Frames - Bar layout dropdown only shows valid options for enabled elements
+ - FIX: Options - Module ordering now consistent between Blizzard options and TUI settings
+ - FIX: QoL - Hide Player Frame no longer causes C stack overflow with oUF
+
 v1.0.0-beta-13 (2026-02-10)
  - NEW: Unit Frames - Player, Target, Focus, Pet, Boss, and Arena frames
  - NEW: Theme System - Customize colors and textures per unit type
