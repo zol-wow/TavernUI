@@ -330,6 +330,7 @@ function TavernUI:OnEnable()
         end)
     end
     self:SendMessage("TavernUI_CoreEnabled")
+    self:RegisterBlizzardOptions()
     self:Print(string.format("|cff00ff00TavernUI|r v%s loaded!", self.version))
 end
 
@@ -642,6 +643,33 @@ function TavernUI:InitializeOptions()
     end
 end
 
+function TavernUI:RegisterBlizzardOptions()
+    AceConfigDialog:AddToBlizOptions("TavernUI", "General", "TavernUI", "general")
+    local options = self:GetOptions()
+    local moduleEntries = {}
+    if options.args.modules and options.args.modules.args then
+        for key, group in pairs(options.args.modules.args) do
+            table.insert(moduleEntries, {
+                key = key,
+                name = type(group.name) == "string" and group.name or key,
+            })
+        end
+    end
+    table.sort(moduleEntries, function(a, b)
+        return a.name < b.name
+    end)
+
+    for _, entry in ipairs(moduleEntries) do
+        local blizKey = "TavernUI." .. entry.key
+        AceConfig:RegisterOptionsTable(blizKey, function()
+            return options.args.modules.args[entry.key]
+        end)
+        AceConfigDialog:AddToBlizOptions(blizKey, entry.name, "TavernUI")
+    end
+
+    AceConfigDialog:AddToBlizOptions("TavernUI", "Profiles", "TavernUI", "profiles")
+end
+
 function TavernUI:RegisterModuleOptions(moduleName, moduleOptions, displayName)
     displayName = displayName or moduleName
     
@@ -685,17 +713,6 @@ function TavernUI:RegisterModuleOptions(moduleName, moduleOptions, displayName)
             end
             options.args.modules.args[moduleName].args[key] = value
         end
-    end
-    
-    -- Register as sub-panel in Blizzard Interface Options (Game Menu → Interface → AddOns)
-    if not self._blizRegistered then self._blizRegistered = {} end
-    if not self._blizRegistered[moduleName] then
-        local blizKey = "TavernUI." .. moduleName
-        AceConfig:RegisterOptionsTable(blizKey, function()
-            return options.args.modules.args[moduleName]
-        end)
-        AceConfigDialog:AddToBlizOptions(blizKey, displayName, "TavernUI")
-        self._blizRegistered[moduleName] = true
     end
 
     AceConfigRegistry:NotifyChange("TavernUI")
