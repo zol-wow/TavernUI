@@ -140,16 +140,31 @@ function Elements:CreatePower(frame, unit, db)
 end
 
 function Elements:CreatePortrait(frame, unit, db)
-    local portrait = frame:CreateTexture(nil, "OVERLAY")
-    portrait:SetSize(frame:GetHeight(), frame:GetHeight())
-    portrait:SetPoint("LEFT")
+    local pDb = db.portrait or {}
+    local side = pDb.side or "LEFT"
+    local size = frame:GetHeight()
+
+    local container = CreateFrame("Frame", nil, frame)
+    container:SetFrameLevel(frame:GetFrameLevel() + 4)
+    container:SetSize(size, size)
+    container:ClearAllPoints()
+    if side == "RIGHT" then
+        container:SetPoint("LEFT", frame, "RIGHT", 0, 0)
+    else
+        container:SetPoint("RIGHT", frame, "LEFT", 0, 0)
+    end
+
+    local portrait = container:CreateTexture(nil, "ARTWORK")
+    portrait:SetAllPoints()
+    portrait:SetTexCoord(0.15, 0.85, 0.15, 0.85)
 
     frame.TUI_Portrait = portrait
+    frame.TUI_PortraitFrame = container
 
     if db.showPortrait then
         frame.Portrait = portrait
     else
-        portrait:Hide()
+        container:Hide()
     end
 
     return portrait

@@ -227,9 +227,25 @@ local function BuildUnitOptions(unitType, unitInfo)
             type = "toggle",
             name = "Show Portrait",
             order = 23,
+            hidden = function() return unitType ~= "player" and unitType ~= "target" and unitType ~= "arena" end,
             get = function() return GetUnitSetting(unitType, "showPortrait", false) end,
             set = function(_, value)
                 SetUnitSetting(unitType, "showPortrait", value)
+                module:RefreshUnitType(unitType)
+            end,
+        },
+        portraitSide = {
+            type = "select",
+            name = "Portrait Side",
+            order = 23.5,
+            values = { LEFT = "Left", RIGHT = "Right" },
+            hidden = function()
+                return (unitType ~= "player" and unitType ~= "target" and unitType ~= "arena")
+                    or not GetUnitSetting(unitType, "showPortrait", false)
+            end,
+            get = function() return GetUnitSetting(unitType, "portrait.side", "LEFT") end,
+            set = function(_, value)
+                SetUnitSetting(unitType, "portrait.side", value)
                 module:RefreshUnitType(unitType)
             end,
         },
@@ -378,7 +394,26 @@ local function BuildUnitOptions(unitType, unitInfo)
             name = "Bar Order",
             desc = "Stacking order of bars inside the frame (top to bottom). Health fills remaining space.",
             order = 50.5,
-            values = module.BAR_LAYOUTS,
+            values = function()
+                local hasPower = GetUnitSetting(unitType, "showPower", true)
+                local hasInfo = GetUnitSetting(unitType, "showInfoBar", false)
+                local hasClass = GetUnitSetting(unitType, "showClassPower", false)
+                local filtered = {}
+                for key, label in pairs(module.BAR_LAYOUTS) do
+                    local needsPower = key:find("P") ~= nil
+                    local needsInfo = key:find("I") ~= nil
+                    local needsClass = key:find("C") ~= nil
+                    if (not needsPower or hasPower)
+                        and (not needsInfo or hasInfo)
+                        and (not needsClass or hasClass) then
+                        filtered[key] = label
+                    end
+                end
+                if not next(filtered) then
+                    filtered["HP"] = module.BAR_LAYOUTS["HP"]
+                end
+                return filtered
+            end,
             get = function() return GetUnitSetting(unitType, "barLayout", "HP") end,
             set = function(_, value)
                 SetUnitSetting(unitType, "barLayout", value)
