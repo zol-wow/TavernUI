@@ -219,13 +219,17 @@ function module:ApplyFrameHider()
     if hide then
         if not self.playerFrameSetParentHook then
             self.playerFrameSetParentHook = true
+            local reparenting = false
             hooksecurefunc(PlayerFrame, "SetParent", function(frame, parent)
+                if reparenting then return end
                 if parent ~= module.playerFrameHiddenParent and module:IsEnabled() and module:GetSetting("hidePlayerFrame", false) then
                     if InCombatLockdown() and frame:IsProtected() then
                         module.pendingFrameHiderApply = true
                         module:RegisterEvent("PLAYER_REGEN_ENABLED", "ApplyFrameHiderDeferred")
                     else
+                        reparenting = true
                         frame:SetParent(module.playerFrameHiddenParent)
+                        reparenting = false
                     end
                 end
             end)
