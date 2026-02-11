@@ -17,9 +17,6 @@ local Anchoring = {}
 local anchorHandles = {}
 local libEditModeRegistered = {}
 local combatApplyQueue = {}
-local editModeSnapshot = {}
-local editModeSnapshotLayout = nil
-local editModeSaved = false
 local combatEventRegistered = false
 local combatEventFrame = nil
 
@@ -214,6 +211,13 @@ local function CreateNudgeButton(parent, direction, deltaX, deltaY, unit)
             if not positions[layoutName] then positions[layoutName] = {} end
             positions[layoutName][unit] = { point = pos.point, x = newX, y = newY }
         end
+        SetAnchorConfig(unit, {
+            target = "UIParent",
+            point = pos.point,
+            relativePoint = pos.point,
+            offsetX = newX,
+            offsetY = newY,
+        })
         UpdateEditOverlayInfo(unit)
     end)
     return btn
@@ -273,6 +277,14 @@ function Anchoring:RegisterFrame(unit, frame)
             local positions = GetEditModeLayoutPositions()
             if not positions[layoutName] then positions[layoutName] = {} end
             positions[layoutName][uKey] = { point = point, x = x, y = y }
+
+            SetAnchorConfig(uKey, {
+                target = "UIParent",
+                point = point,
+                relativePoint = point,
+                offsetX = x,
+                offsetY = y,
+            })
         end, default, "TavernUI " .. displayName)
 
         libEditModeRegistered[unit] = true
@@ -475,15 +487,6 @@ end
 local function OnLibEditModeExit()
     if not module:IsEnabled() then return end
 
-    if not editModeSaved and editModeSnapshotLayout then
-        local positions = GetEditModeLayoutPositions()
-        positions[editModeSnapshotLayout] = editModeSnapshot
-    end
-
-    editModeSnapshot = {}
-    editModeSnapshotLayout = nil
-    editModeSaved = false
-
     HideBossArenaAfterEditMode()
 
     for unit, _ in pairs(libEditModeRegistered) do
@@ -501,18 +504,6 @@ function Anchoring:Initialize()
 
     if useLibEditMode and LibEditMode.RegisterCallback then
         LibEditMode:RegisterCallback("enter", function()
-            editModeSaved = false
-            editModeSnapshot = {}
-            editModeSnapshotLayout = LibEditMode:GetActiveLayoutName()
-            if editModeSnapshotLayout then
-                local positions = GetEditModeLayoutPositions()
-                local layoutPositions = positions[editModeSnapshotLayout]
-                if layoutPositions then
-                    for unit, pos in pairs(layoutPositions) do
-                        editModeSnapshot[unit] = { point = pos.point, x = pos.x, y = pos.y }
-                    end
-                end
-            end
             ShowBossArenaForEditMode()
             for unit, _ in pairs(libEditModeRegistered) do
                 local f = GetFrameForUnit(unit)
@@ -524,13 +515,6 @@ function Anchoring:Initialize()
         end)
 
         LibEditMode:RegisterCallback("exit", OnLibEditModeExit)
-
-        local C_EditMode = _G.C_EditMode
-        if C_EditMode and C_EditMode.SaveLayouts then
-            hooksecurefunc(C_EditMode, "SaveLayouts", function()
-                editModeSaved = true
-            end)
-        end
     end
 end
 

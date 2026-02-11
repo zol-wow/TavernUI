@@ -84,7 +84,6 @@ local UNIT_INDICATORS = {
 module.UNIT_INDICATORS = UNIT_INDICATORS
 
 local defaults = {
-    editModeLayoutPositions = {},
     -- Theme settings (flat, read via GetThemeSetting)
     statusBarTexture = THEME_DEFAULTS.statusBarTexture,
     frameBg = THEME_DEFAULTS.frameBg,
@@ -104,6 +103,7 @@ local defaults = {
             enabled = true, width = 200, height = 40,
             showPower = true, showCastbar = true, showPortrait = false,
             showClassPower = true, showInfoBar = false,
+            portrait = { side = "LEFT" },
             useClassColor = false, rangeAlpha = 1,
             barLayout = "HP",
             themeOverrides = {},
@@ -129,6 +129,7 @@ local defaults = {
             enabled = true, width = 200, height = 40,
             showPower = true, showCastbar = true, showPortrait = false,
             showClassPower = false, showInfoBar = false,
+            portrait = { side = "RIGHT" },
             useClassColor = false, rangeAlpha = 1,
             barLayout = "HP",
             themeOverrides = {},
@@ -261,6 +262,7 @@ local defaults = {
             enabled = false, width = 200, height = 40,
             showPower = true, showCastbar = true, showPortrait = false,
             showClassPower = false, showInfoBar = false,
+            portrait = { side = "RIGHT" },
             useClassColor = false, rangeAlpha = 1,
             barLayout = "HP",
             themeOverrides = {},
@@ -674,20 +676,30 @@ function module:UpdateFrame(unit)
     if frame.TUI_InfoBarText then frame.TUI_InfoBarText:SetTextColor(tr, tg, tb, ta) end
 
     if db.showPortrait then
+        if frame.TUI_PortraitFrame then
+            local pDb = db.portrait or {}
+            local side = pDb.side or "LEFT"
+            local size = frame:GetHeight()
+            frame.TUI_PortraitFrame:SetSize(size, size)
+            frame.TUI_PortraitFrame:ClearAllPoints()
+            if side == "RIGHT" then
+                frame.TUI_PortraitFrame:SetPoint("LEFT", frame, "RIGHT", 0, 0)
+            else
+                frame.TUI_PortraitFrame:SetPoint("RIGHT", frame, "LEFT", 0, 0)
+            end
+            frame.TUI_PortraitFrame:Show()
+        end
         if not frame.Portrait and frame.TUI_Portrait then
             frame.Portrait = frame.TUI_Portrait
             frame:EnableElement("Portrait")
-        end
-        if frame.TUI_Portrait then
-            frame.TUI_Portrait:SetSize(frame:GetHeight(), frame:GetHeight())
         end
     else
         if frame.Portrait then
             frame:DisableElement("Portrait")
             frame.Portrait = nil
         end
-        if frame.TUI_Portrait then
-            frame.TUI_Portrait:Hide()
+        if frame.TUI_PortraitFrame then
+            frame.TUI_PortraitFrame:Hide()
         end
     end
 
