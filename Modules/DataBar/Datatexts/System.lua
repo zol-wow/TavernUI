@@ -9,7 +9,33 @@ local cachedFps, cachedMs = 0, 0
 local cachedAddons = {}
 local cachedTotal = 0
 local lastMemUpdate = 0
+local pendingMemUpdate = false
 local MEM_UPDATE_INTERVAL = 30
+
+local function CollectMemoryData()
+    local count = 0
+    local total = 0
+    for i = 1, C_AddOns.GetNumAddOns() do
+        local mem = GetAddOnMemoryUsage(i)
+        if mem > 0 then
+            count = count + 1
+            total = total + mem
+            local entry = cachedAddons[count]
+            if entry then
+                entry.name = C_AddOns.GetAddOnInfo(i)
+                entry.mem = mem
+            else
+                cachedAddons[count] = { name = C_AddOns.GetAddOnInfo(i), mem = mem }
+            end
+        end
+    end
+    for i = count + 1, #cachedAddons do
+        cachedAddons[i] = nil
+    end
+    table.sort(cachedAddons, function(a, b) return a.mem > b.mem end)
+    cachedTotal = total
+    pendingMemUpdate = false
+end
 
 DataBar:RegisterDatatext("System", {
     label = "System",
@@ -22,18 +48,11 @@ DataBar:RegisterDatatext("System", {
         cachedMs = floor(homePing or 0)
 
         local now = GetTime()
-        if now - lastMemUpdate >= MEM_UPDATE_INTERVAL then
+        if now - lastMemUpdate >= MEM_UPDATE_INTERVAL and not pendingMemUpdate then
             lastMemUpdate = now
+            pendingMemUpdate = true
             UpdateAddOnMemoryUsage()
-            for k in pairs(cachedAddons) do cachedAddons[k] = nil end
-            for i = 1, C_AddOns.GetNumAddOns() do
-                local mem = GetAddOnMemoryUsage(i)
-                if mem > 0 then
-                    cachedAddons[#cachedAddons + 1] = { name = C_AddOns.GetAddOnInfo(i), mem = mem }
-                end
-            end
-            table.sort(cachedAddons, function(a, b) return a.mem > b.mem end)
-            cachedTotal = collectgarbage("count")
+            C_Timer.After(0, CollectMemoryData)
         end
 
         return { tostring(cachedFps), tostring(cachedMs) }
