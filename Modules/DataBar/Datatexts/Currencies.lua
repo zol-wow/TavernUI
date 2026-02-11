@@ -16,9 +16,19 @@ local function AbbrevNumber(n)
     return tostring(n)
 end
 
+local function OnTokenWatchChanged()
+    DataBar:RefreshDatatext("Currencies")
+end
+
 DataBar:RegisterDatatext("Currencies", {
     labelShort = "Curr",
     events = { "CURRENCY_DISPLAY_UPDATE" },
+    init = function()
+        EventRegistry:RegisterCallback("TokenFrame.OnTokenWatchChanged", OnTokenWatchChanged)
+    end,
+    cleanup = function()
+        EventRegistry:UnregisterCallback("TokenFrame.OnTokenWatchChanged", OnTokenWatchChanged)
+    end,
     update = function()
         local parts = {}
         for i = 1, 3 do
